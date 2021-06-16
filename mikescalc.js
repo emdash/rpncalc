@@ -1,5 +1,6 @@
 "use strict";
 
+
 function builtin(arity, func) {
     return function (stack) {
 	// the index on the stack where the operands begin
@@ -50,7 +51,7 @@ function calculator(tape, stack) {
     //
     // Clear the redo stack, and push the current state to the undo
     // stack.
-    function update(log, func) {
+    function update(log, func, undoable) {
 	return (...args) => {
 	    console.log(log);
 	    undo_stack.push(state);
@@ -90,7 +91,7 @@ function calculator(tape, stack) {
 
     function item(item) {	
 	const ret = document.createElement("div");
-	ret.appendChild(document.createTextNode(JSON.stringify(item)));
+	ret.appendChild(document.createTextNode(item.toString()));
 	return ret;
     }
 
@@ -130,7 +131,7 @@ function calculator(tape, stack) {
 	stack: state.stack,
 	tape: state.tape || [],
 	accum: null,
-    }));
+    }), true);
 
     // Reset the entire calculator
     const reset = update('reset', (state) => initial);
@@ -154,23 +155,24 @@ function calculator(tape, stack) {
 
     // Apply operation to current stack.
     const operation = (name) => update(`operation: ${name}`, (state) => {
-	if (state.accum !== null) {
-	    return {
-		ops: state.ops,
-		stack: state.ops[name](state.stack),
-		tape: [...state.tape, name],
-		accum: state.accum
-	    };
-	} else {
-	    return {
-		ops: state.ops,
-		stack: state.ops[name](state.stack),
-		tape: [...state.tape, name],
-		accum: state.accum
-	    };
-	}
-    });
+	// Log non-empty accumulator to tape before applying operator.
+	let tape = state.accum === null
+	    ? [...state.tape, name]
+	    : [...state.tape, state.accum, name];
 
+	// Push non-empty accum to stack before applying operator.
+	let stack = state.accum === null
+	    ? state.stack
+	    : [...state.stack, state.accum];
+
+	return {
+	    ops: state.ops,
+	    stack: state.ops[name](stack),
+	    tape: tape,
+	    accum: null
+	};
+    });
+    
     return {
 	undo,
 	redo,
@@ -211,16 +213,18 @@ const keymap = {
     'r': calc.operation('sqrt'),
     'Enter':     calc.enter,
     'Backspace': calc.undo,
-    'Tab':       calc.redo
+    'Space':     calc.redo,
+    'Delete':    calc.clear,
 }
 
 // Hook up keyboard handlers through the keymap.
-document.body.addEventListener('keydown', function (event) {
+window.addEventListener('keydown', function (event) {
     console.log(event);
+    event.preventDefault();
     if (event.key in keymap) {
 	keymap[event.key]();
     } else {
-	console.log('unknown key');
+	console.log('unknown key', event.key);
     }
 });
 
