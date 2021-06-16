@@ -155,21 +155,21 @@ function calculator(ops, tape, stack, accum) {
 
     // Apply operation to current stack.
     function operator(name) {
-	return update(function (state) {
+	update(name, function (state) {
 	    return {
 		ops: state.ops,
 		stack: state.ops[name](state.stack),
-		tape: tape,
+		tape: [...state.tape, name],
 		accum: null
 	    };
-	});
+	})();
     }
 
     // Transfer non-empty accum, then update with operator.
     function operation(name) {
 	return function() { 
 	    enter();
-	    operator(name)();
+	    operator(name);
 	};
     };
     
