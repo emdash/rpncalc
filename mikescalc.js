@@ -4,16 +4,20 @@
 function builtin(arity, func) {
     return function (stack) {
 	// the index on the stack where the operands begin
-	const pivot = stack.length - arity;
-	const args = stack.slice(pivot);
-	const residual = stack.slice(0, pivot);
+	if (stack.lenth >= arity) {
+	    const pivot = stack.length - arity;
+	    const args = stack.slice(pivot);
+	    const residual = stack.slice(0, pivot);
 
-	// one result per function assumed.
-	residual.push(func(args));
+	    // one result per function assumed.
+	    residual.push(func(args));
 
-	console.log(pivot, args, residual);
+	    console.log(pivot, args, residual);
 	
-	return residual;
+	    return residual;
+	} else {
+	    return stack;
+	}
     }
 }
 
@@ -204,6 +208,7 @@ const keymap = {
     '7': calc.digit(7),
     '8': calc.digit(8),
     '9': calc.digit(9),
+    '.': calc.decimal(),
     '+': calc.operation('+'),
     '-': calc.operation('-'),
     '*': calc.operation('*'),
