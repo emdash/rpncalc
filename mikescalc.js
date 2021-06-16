@@ -32,7 +32,7 @@ const builtins = {
 
 
 // A calculator is a monad over its state.
-function calculator(tape, stack) {    
+function calculator(ops, tape, stack, accum) {    
     // Define the default state:
     let initial = {
 	ops: builtins,
@@ -51,7 +51,7 @@ function calculator(tape, stack) {
     //
     // Clear the redo stack, and push the current state to the undo
     // stack.
-    function update(log, func, undoable) {
+    function update(log, func) {
 	return (...args) => {
 	    console.log(log);
 	    undo_stack.push(state);
@@ -131,7 +131,7 @@ function calculator(tape, stack) {
 	stack: state.stack,
 	tape: state.tape || [],
 	accum: null,
-    }), true);
+    }));
 
     // Reset the entire calculator
     const reset = update('reset', (state) => initial);
@@ -154,24 +154,24 @@ function calculator(tape, stack) {
     } : state));
 
     // Apply operation to current stack.
-    const operation = (name) => update(`operation: ${name}`, (state) => {
-	// Log non-empty accumulator to tape before applying operator.
-	let tape = state.accum === null
-	    ? [...state.tape, name]
-	    : [...state.tape, state.accum, name];
+    function operator(name) {
+	return update(function (state) {
+	    return {
+		ops: state.ops,
+		stack: state.ops[name](state.stack),
+		tape: tape,
+		accum: null
+	    };
+	});
+    }
 
-	// Push non-empty accum to stack before applying operator.
-	let stack = state.accum === null
-	    ? state.stack
-	    : [...state.stack, state.accum];
-
-	return {
-	    ops: state.ops,
-	    stack: state.ops[name](stack),
-	    tape: tape,
-	    accum: null
+    // Transfer non-empty accum, then update with operator.
+    function operation(name) {
+	return function() { 
+	    enter();
+	    operator(name)();
 	};
-    });
+    };
     
     return {
 	undo,
@@ -186,8 +186,10 @@ function calculator(tape, stack) {
 
 
 const calc = calculator(
+    document.getElementById("ops"),
     document.getElementById("tape"),
-    document.getElementById("stack")
+    document.getElementById("stack"),
+    document.getElementById("accum")
 );
 
 
@@ -213,9 +215,10 @@ const keymap = {
     'r': calc.operation('sqrt'),
     'Enter':     calc.enter,
     'Backspace': calc.undo,
-    'Space':     calc.redo,
+    'Tab':     calc.redo,
     'Delete':    calc.clear,
 }
+
 
 // Hook up keyboard handlers through the keymap.
 window.addEventListener('keydown', function (event) {
@@ -227,22 +230,3 @@ window.addEventListener('keydown', function (event) {
 	console.log('unknown key', event.key);
     }
 });
-
-calc.clear();
-
-
-function test() {
-    calc.digit(4)();
-    calc.enter();
-    calc.digit(5)();
-    calc.enter();
-    calc.operation('+')();
-    calc.undo();
-    calc.redo();
-    calc.undo();
-    calc.undo();
-    calc.undo();
-    calc.digit(6)();
-    calc.enter();
-    calc.operation('*')();
-}
