@@ -16,7 +16,7 @@ function builtin(arity, func) {
 	
 	    return residual;
 	} else {
-	    return stack;
+	    return "stack underflow";
 	}
     }
 }
@@ -35,9 +35,8 @@ const builtins = {
 };
 
 
-// A calculator is a monad over its state.
-function calculator(ops, tape, stack, accum) {    
-    // Define the default state:
+function undo() {
+        // Define the default state:
     let initial = {
 	ops: builtins,
 	tape: [],
@@ -90,7 +89,138 @@ function calculator(ops, tape, stack, accum) {
 	}
 	render();
     }
+}
 
+
+
+// Immutable accumulator state monad.
+//
+// Handles user input logic.
+function accumulator(state) {
+    const initial = {type: "empty"};
+
+    state = state || initial;
+    
+    function digit(d) {
+	switch (state.type) {
+	case "empty": return accumulator({
+	    type: "int",
+	    value: d
+	});
+	case "integer": return accumulator({
+	    type:  "int",
+	    value: state.value * 10 + d,
+	});
+	case "float": return accumulator({
+	    type: "float",
+	    integer:  state.integer,
+	    fraction: state.fraction * 10 + d
+	});
+	case "word": return accumulator({
+	    type: "word",
+	    value: state.value + d
+	});
+	}
+    }
+
+    function decimal() {
+	switch (state.type) {
+	case "empty":   return accumulator({
+	    type: "float",
+	    integer: 0,
+	    fraction: 0
+	});
+	case "integer": return accumulator({
+	    type: "float",
+	    integer: state.value,
+	    fraction: 0
+	});
+	case "float":   return state;
+	case "word":    return state;
+	}
+    }
+
+    function letter(l) {
+	switch (state.type) {
+	case "empty":   return accumulator({
+	    type: "word",
+	    value: l
+	});
+	case "integer": return state
+	case "float":   return state
+	case "word":    return accumulator({
+	    type: "word",
+	    value: state.value + l
+	});
+	}
+    }
+    
+    return {...state, digit, decimal, letter};
+}
+
+
+// Immutable calculator state monad.
+//
+// The entire calculator state.
+function calculator (state) {
+    const initial = {
+	ops: builtins,
+	stack: [],
+	accum: accumulator()
+    };
+
+    state = state || initial;
+
+    // Clear the accumulator.
+    const clear = () => calculator({
+	...state,
+	accum: {type: "empty"}
+    });
+
+    // Reset the entire calculator
+    const reset = () => calculator(initial);
+
+    // Transfer digit to accumulator.
+    const digit = (d) => calculator({
+	...state,
+	accum: state.accum === null ? `${d}` : state.accum + `${d}`,
+    });
+
+    // Handle decimal point being pressed.
+    const decimal = () => calculator({
+	...state,
+	accum: state.accum === null ? `0.` : state.accum + `.`,
+    });
+
+    // Push accumulator to stack
+    const enter = () => (state.accum !== null) ? calculator({
+	ops: state.ops,
+	stack: [...state.stack, state.accum],
+	tape: [...state.tape, state.accum],
+	accum: init.accum
+    }) : state;
+
+    // Apply operation to current stack.
+    const operator = (name) => calculator({
+	...state.enter(),
+	stack: state.ops[name](state.stack),
+	tape: [...state.tape, name],
+	accum: init.accum
+    });
+    
+    return {
+        ...state,
+	clear,
+	digit,
+	decimal,
+	enter,
+	operator,
+    };
+}
+
+
+// Top level calculator object
+function app() {    
     // ... to here.
 
     function item(item) {	
@@ -124,72 +254,10 @@ function calculator(ops, tape, stack, accum) {
 	    tape.append(item(token));
 	}
     }
-    
-    /* 
-     * Each of the following is defined in monadic style.
-     */
-
-    // Clear the accumulator.
-    const clear = update('clear', (state) => ({
-	ops: state.ops,
-	stack: state.stack,
-	tape: state.tape || [],
-	accum: null,
-    }));
-
-    // Reset the entire calculator
-    const reset = update('reset', (state) => initial);
-
-    // Transfer digit to accumulator.
-    const digit = (d) => update(`digit: ${d}`, (state) => ({
-	ops: state.ops,
-	stack: state.stack,
-	tape: state.tape,
-	// just insert digit if accum is null.
-	accum: state.accum === null ? d : state.accum * 10 + d,
-    }));
-
-    // Push accumulator to stack
-    const enter = update('enter', (state) => (state.accum !== null ? {
-	ops: state.ops,
-	stack: [...state.stack, state.accum],
-	tape: [...state.tape, state.accum],
-	accum: null
-    } : state));
-
-    // Apply operation to current stack.
-    function operator(name) {
-	update(name, function (state) {
-	    return {
-		ops: state.ops,
-		stack: state.ops[name](state.stack),
-		tape: [...state.tape, name],
-		accum: null
-	    };
-	})();
-    }
-
-    // Transfer non-empty accum, then update with operator.
-    function operation(name) {
-	return function() { 
-	    enter();
-	    operator(name);
-	};
-    };
-    
-    return {
-	undo,
-	redo,
-	render,
-	clear,
-	digit,
-	enter,
-	operation,
-    };
 }
 
 
-const calc = calculator(
+const calc = app(
     document.getElementById("ops"),
     document.getElementById("tape"),
     document.getElementById("stack"),
@@ -223,7 +291,6 @@ const keymap = {
     'Tab':     calc.redo,
     'Delete':    calc.clear,
 }
-
 
 // Hook up keyboard handlers through the keymap.
 window.addEventListener('keydown', function (event) {
