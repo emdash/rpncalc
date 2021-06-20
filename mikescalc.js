@@ -19,7 +19,7 @@ function assert(cond) {
 function builtin(arity, func) {
     return (stack) => {
 	// the index on the stack where the operands begin
-	if (stack.lenth >= arity) {
+	if (stack.length >= arity) {
 	    const pivot = stack.length - arity;
 	    const args = stack.slice(pivot);
 	    const residual = stack.slice(0, pivot);
@@ -31,7 +31,7 @@ function builtin(arity, func) {
 	    
 	    return residual;
 	} else {
-	    return "stack underflow";
+	    throw "stack underflow";
 	}
     }
 }
