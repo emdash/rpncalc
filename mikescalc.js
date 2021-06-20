@@ -15,43 +15,9 @@ function assert(cond) {
 }
 
 
-// This function has survied several refactorings
-function builtin(arity, func) {
-    return (stack) => {
-	// the index on the stack where the operands begin
-	if (stack.length >= arity) {
-	    const pivot = stack.length - arity;
-	    const args = stack.slice(pivot);
-	    const residual = stack.slice(0, pivot);
-
-	    // one result per function assumed.
-	    residual.push(func(args));
-
-	    console.log(pivot, args, residual);
-	    
-	    return residual;
-	} else {
-	    throw "stack underflow";
-	}
-    }
-}
-
-
-// This table of builtins has surivived several refactorings as well.
-const builtins = {
-    "+":    builtin(2, (args) => args[0] + args[1]),
-    "-":    builtin(2, (args) => args[0] - args[1]),
-    "*":    builtin(2, (args) => args[0] * args[1]),
-    "/":    builtin(2, (args) => args[0] / args[1]),
-    "log":  builtin(2, (args) => Math.log(args[0], args[1])),
-    "pow":  builtin(2, (args) => Math.pow(args[0], args[1])),
-    "sin":  builtin(1, (args) => Math.sin(args[0])),
-    "cos":  builtin(1, (args) => Math.cos(args[0])),
-    "sqrt": builtin(1, (args) => Math.sqrt(args[0]))
-};
-
-
 // Return a new object, applying func to every value in obj.
+//
+// This is used a bunch.
 function objmap(func, obj) {
     const ret = {};
     let key;
@@ -83,9 +49,26 @@ function monad(spec) {
 	return (...args) => prop(priv, ...args);
     }
 
+    function mutable(update) {
+	let state = priv;
+
+	const method = (m) => (s, ...a) => {
+	    state = m(s, ...a);
+	    update(state);
+	};
+
+	const property = (p) => (s, ...a) => p
+    
+	return {
+	    ...objmap(method, methods),
+	    ...(objmap(property, properties))
+	};
+    }
+
     return {
 	...objmap(update, methods),
-	...objmap(get, properties)
+	...objmap(get, properties),
+	mutable,
     };
 }
 
@@ -156,6 +139,42 @@ const accumulator = (function () {
 
 
 const calculator = (function () {
+    // This function has survived several refactorings
+    //
+    // It returns a function from stack -> stack
+    function builtin(arity, func) {
+	return (stack) => {
+	    // the index on the stack where the operands begin
+	    if (stack.length >= arity) {
+		const pivot = stack.length - arity;
+		const args = stack.slice(pivot);
+		const residual = stack.slice(0, pivot);
+
+		// one result per function assumed.
+		residual.push(func(args));
+
+		console.log(pivot, args, residual);
+		
+		return residual;
+	    } else {
+		throw "stack underflow";
+	    }
+	}
+    }
+
+    // This table of builtins has survived several refactorings.
+    const builtins = {
+	"+":    builtin(2, (args) => args[0] + args[1]),
+	"-":    builtin(2, (args) => args[0] - args[1]),
+	"*":    builtin(2, (args) => args[0] * args[1]),
+	"/":    builtin(2, (args) => args[0] / args[1]),
+	"log":  builtin(2, (args) => Math.log(args[0], args[1])),
+	"pow":  builtin(2, (args) => Math.pow(args[0], args[1])),
+	"sin":  builtin(1, (args) => Math.sin(args[0])),
+	"cos":  builtin(1, (args) => Math.cos(args[0])),
+	"sqrt": builtin(1, (args) => Math.sqrt(args[0]))
+    };
+
     const init = {
 	ops: builtins,
 	stack: [],
@@ -229,25 +248,6 @@ const calculator = (function () {
 })();
 
 
-// This is the punchline here:
-//
-// Hooking this back to the dom is one function:
-function renderOnUpdate(m, render) {
-    let state = m;
-
-    const update = (method) => (...args) => {
-	state = method(state);
-	render(state);
-    };
-
-    const get = (property) => (...args) => property(state);
-
-    render(state);
-
-    return {...objmap(update, m.methods), ...objmap(get, m.properties)};
-}
-
-
 // This is also the punchline:
 //
 // We can wrap *any* monad in functions like "undoable", it's just a
@@ -290,13 +290,12 @@ function undoable(inner) {
 	}
     }
     
-    return monad(
-	{inner, history: [], undone: []},
-	{undo, redo,
-	 ...objmap(update, inner.methods),
+    return monad({
+	priv: {inner, history: [], undone: []},
+	methods: {undo, redo, ...objmap(update, inner.methods)},
 	 ...objmap(get, inner.properties)
 	}
-    );
+    });
 }
 
 
@@ -361,7 +360,7 @@ function app(ops, tape, stack, accum) {
     // object into a stateful object.
     //
     // The monad generates the methods for us using the 
-    let state = renderOnUpdate(undoable(calculator), render);
+    const state = undoable(calculator).mutable(render);
 
 
     // This has survived several refactorings.
@@ -404,7 +403,7 @@ function app(ops, tape, stack, accum) {
 	keymap(state, event);
     };
 
-    return {...calc, keydown};
+    return {...state, keydown};
 }
 
 // Create a calculator component using the following dom elements
