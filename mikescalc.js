@@ -1,5 +1,13 @@
 "use strict";
 
+
+// Experimental functional approach to writing this.
+//
+// Everything is a monad. If I was new to functional programming, i
+// would have no idea what is going on in this file.
+
+
+// Simple assert is used for testing in a couple places.
 function assert(cond) {
     if (!cond) {
 	throw "Assertion failed";
@@ -7,8 +15,44 @@ function assert(cond) {
 }
 
 
-// map a function over every slot in an object
-function mapobj(func, obj) {
+// This function has survied several refactorings
+function builtin(arity, func) {
+    return (stack) => {
+	// the index on the stack where the operands begin
+	if (stack.lenth >= arity) {
+	    const pivot = stack.length - arity;
+	    const args = stack.slice(pivot);
+	    const residual = stack.slice(0, pivot);
+
+	    // one result per function assumed.
+	    residual.push(func(args));
+
+	    console.log(pivot, args, residual);
+	    
+	    return residual;
+	} else {
+	    return "stack underflow";
+	}
+    }
+}
+
+
+// This table of builtins has surivived several refactorings as well.
+const builtins = {
+    "+":    builtin(2, (args) => args[0] + args[1]),
+    "-":    builtin(2, (args) => args[0] - args[1]),
+    "*":    builtin(2, (args) => args[0] * args[1]),
+    "/":    builtin(2, (args) => args[0] / args[1]),
+    "log":  builtin(2, (args) => Math.log(args[0], args[1])),
+    "pow":  builtin(2, (args) => Math.pow(args[0], args[1])),
+    "sin":  builtin(1, (args) => Math.sin(args[0])),
+    "cos":  builtin(1, (args) => Math.cos(args[0])),
+    "sqrt": builtin(1, (args) => Math.sqrt(args[0]))
+};
+
+
+// Return a new object, applying func to every value in obj.
+function objmap(func, obj) {
     const ret = {};
     let key;
 
@@ -21,214 +65,237 @@ function mapobj(func, obj) {
     return ret;
 }
 
-assert(
-    JSON.stringify(mapobj(JSON.stringify, {foo: 1, bar: 2})) ===
-	JSON.stringify({foo: "1", bar: "2"}));
 
-
-
-// Creates immutable objects.
+// Given a description of a monad, return an object that behaves like
+// a monad.
 //
-// Given a state value, which can be any data, and a dictionary of
-// transformations on the state,
-//
-// Returns an object with derived mutation methods which can be used like an ADT.
-function immutable(state, methods) {
-    // Return function which will return the result of updating this object.
-    function update(func) {
-	return function (...args) {
-	    return immutable(func(state, ...args), methods);
-	}
+// Return an opaque object containing corresponding mutators and setters.
+function monad(spec) {
+    spec.methods = spec.methods || {};
+    spec.properties = spec.properties || {};
+    const {priv, methods, properties} = spec;
+
+    function update(method) {
+	return (...args) => monad({priv: method(priv, ...args), methods, properties});
     }
 
-    const methods = mapobj(update, methods);
-
-    // Return a method which updates some sub-field of the module.
-    function wrap_method(wrapper) {
-	return function (method) {
-	    return wrapper(update(function (...args) {
-		method(...args);
-	    };
-				 }
+    function get(prop) {
+	return (...args) => prop(priv, ...args);
+    }
 
     return {
-	state,
-	...methods,
-	wrap: (wrapper) => mapobj(wrap_method(wrapper), methods)
+	...objmap(update, methods),
+	...objmap(get, properties)
     };
 }
 
-let counter = immutable(0, {inc: (state) => state + 1});
-let outer = counter.wrap((counter) => {state: counter});
 
-
-// Abstract monad
-function monad(state, output) {
-    function update(func) {
-	return function (...args) {
-	    state = func(state, ...args);
-	    output(state);
-	}
-    }
-
-    // Force the initial state to the output.
-    output(state);
-
-    // Return an object which allows updating 
-    return mapobj(update, state.methods);
-}
-
-let test = null;
-let tm = monad(
-    immutable(0, {inc: (state) => state + 1}),
-    (m) => {test = m.state}
-);
-assert(test === 0);
-tm.inc();
-assert(test === 1);
-
-
-// Immutable accumulator state monad.
+// A monad representing the calculator's input accumulator.
 //
-// Handles user input logic.
-function accumulator() {
-    const initial = {type: "empty"};
+// It is mostly just a wrapper around the usual methods for parsing
+// base 10 values, but there are some wrinkles since it is modal.
+//
+// The accumulator starts out empty.
+// If the first character is a digit, accumulator is in decimal mode.
+// If the first character is a decimal, accumulator is in float mode.
+// If the first character is a letter, accumulator is in word mode.
+//
+// Subsequent chars are then accepted or rejected based on the mode,
+// until it is cleared, via clear().
+const accumulator = (function () {
+    const empty = {type: "empty"};
 
     // Clear the accumulator state.
-    function clear(state) { return initial; };
+    function clear(state) { return empty; };
+
+    // Fold a single digit into accumulator
+    const fold_digit = (state, d) => state * 10 + d;
 
     // Handle an incoming digit
     function digit(state, d) { switch (state.type) {
-	case "empty": return {type: "int", value: d};
-	case "int":   return {type: "int", value: state.value * 10 + d};
-	case "float": return {type: "float", "int":  state["int"], frac: state.frac * 10 + d};
-	case "word":  return {type: "word", value: state.value + d};
+	case "empty": return {type: "dec",   dec: d};
+	case "dec":   return {type: "dec",   dec: fold_digit(state.dec, d)};
+	case "float": return {type: "float", frac: fold_digit(state.frac, d), dec: state.dec};
+	case "word":  return {type: "word",  value: state.value + d.toString()};
     }; }
 
     // Handle the decimal point.
     function decimal(state) { switch (state.type) {
-	case "empty": return {type: "float", "int": 0, frac: 0};
-	case "int":   return {type: "float", "int": state.value, frac: 0};
+	case "empty": return {type: "float", dec: 0, frac: 0};
+	case "dec":   return {type: "float", dec: state.dec, frac: 0};
 	case "float": return state;
-	case "word":  return state;
+	case "word":  throw "Illegal: decimal point in word."
     }; }
 
     // Handle an incomming letter.
     function letter(state, l) { switch (state.type) {
 	case "empty": return {type: "word", value: l};
-	case "int":   return state
-	case "float": return state
+	case "dec":   throw "Illegal: letter in numeral."
+	case "float": throw "Illegal: letter in numeral."
 	case "word":  return {type: "word", value: state + l};
     }; }
-    
-    return immutable(initial, {clear, digit, decimal, letter});
-}
 
+    // Return the current value of the accumulator.
+    function value(state, defs) { switch (state.type) {
+	case "empty": throw "Empty Accumulator";
+	case "dec":   return state.dec;
+	case "float": return parseFloat(`${state.dec}.${state.frac}`);
+	case "word":  return state.value;
+    }; }
 
-// Immutable calculator state.
-function calculator (state) {
-    // Helper function for defining builtin operations on the stack.
-    function builtin(arity, func) {
-	return function (stack) {
-	    // the index on the stack where the operands begin
-	    if (stack.lenth >= arity) {
-		const pivot = stack.length - arity;
-		const args = stack.slice(pivot);
-		const residual = stack.slice(0, pivot);
-
-		// one result per function assumed.
-		residual.push(func(args));
-
-		console.log(pivot, args, residual);
-		
-		return residual;
-	    } else {
-		return "stack underflow";
-	    }
-	}
+    function isEmpty(state) {
+	return state.type === "empty";
     }
+    
+    return monad({
+	priv: empty,
+	methods: {clear, digit, decimal, letter},
+	properties: {value, isEmpty}
+    });
+})();
 
-    // table of builtin operations.
-    const builtins = {
-	"+":    builtin(2, (args) => args[0] + args[1]),
-	"-":    builtin(2, (args) => args[0] - args[1]),
-	"*":    builtin(2, (args) => args[0] * args[1]),
-	"/":    builtin(2, (args) => args[0] / args[1]),
-	"log":  builtin(2, (args) => Math.log(args[0], args[1])),
-	"pow":  builtin(2, (args) => Math.pow(args[0], args[1])),
-	"sin":  builtin(1, (args) => Math.sin(args[0])),
-	"cos":  builtin(1, (args) => Math.cos(args[0])),
-	"sqrt": builtin(1, (args) => Math.sqrt(args[0]))
-    };
 
-    const initial = {
+const calculator = (function () {
+    const init = {
 	ops: builtins,
 	stack: [],
-	accum: accumulator()
+	tape: [],
+	defs: {},
+	accum: accumulator
     };
 
-    state = state || initial;
+    // transfer accumulator to stack
+    function enter(state) {
+	if (!state.accum.isEmpty()) {
+	    let accum = state.accum.clear();
+	    let value = state.accum.value();
+	    let numeric = (typeof(value) === "string")
+		? state.defs[value]
+		: value;
+	    let stack = [...state.stack, numeric];
+	    let tape = [...state.tape, value];
+	    return {...state, stack, accum, tape};
+	} else {
+	    return state;
+	}
+    }
 
-    const reset = (state) => initial;
-    const enter = (state) => (state.accum.type !== "empty") ? {
-	stack: [...state.stack, state.accum],
-	tape:  [...state.tape, state.accum],
-	accum: accumulator()
-    } : state;
-    const operation = (state, op) => state.enter{
-	accum: accumulator(),
+    // apply operator to stack
+    function operator(state, operator) {
+	// Ensure accumulator contents are transfered to stack.
+	let auto_enter = enter(state);
 
-    return immutable(
-	state,
-	{reset, enter}
-    ).expose(
-	(state)        => state.accum,
-	(state, accum) => ({...state, accum})
-    );
+	assert(auto_enter.accum.isEmpty());
+	assert(operator in auto_enter.ops);
+
+	let stack = auto_enter.ops[operator](auto_enter.stack);
+	let tape = [...auto_enter.tape, operator];
+	return {...auto_enter, stack, tape};
+    }
+
+    // Reset the calculator to initial conditions.
+    function reset(state) {
+	return init;
+    }
+
+    // Return the top value of the stack, if present.
+    function top(state) {
+	console.log(state);
+	const stack = state.stack;
+	const length = stack.length;
+
+	if (length > 0) {
+	    return stack[length - 1];
+	} else {
+	    throw "Stack Underflow";
+	}
+    }
+
+    // Return the current set of definitions.
+    function defs(state) { return state.defs };
+    function stack(state) { return state.stack };
+
+    // Re-expose the key behavior from accumulator
+    const digit   = (state, d) => ({...state, accum: state.accum.digit(d)});
+    const decimal = (state)    => ({...state, accum: state.accum.decimal()});
+    const letter  = (state, l) => ({...state, accum: state.accum.letter(l)});
+    const accum   = (state)    => state.accum.value();
+
+    return monad({
+	priv: init,
+	properties: {top, stack, defs, tape, accum},
+	methods: {reset, enter, digit, decimal, letter, operator},
+    });
+})();
+
+
+// This is the punchline here:
+//
+// Hooking this back to the dom is one function:
+function renderOnUpdate(m, render) {
+    let state = m;
+
+    const update = (method) => (...args) => {
+	state = method(state);
+	render(state);
+    };
+
+    const get = (property) => (...args) => property(state);
+
+    render(state);
+
+    return {...objmap(update, m.methods), ...objmap(get, m.properties)};
 }
 
 
-
-// Undo / redo mixin
-function undoable(wrapped) {
-    const state = {wrapped, history: [], undone: []};
-
-    function update(state) {
-	const history = [...state.history, state];
-	const undone = [];
-	return {state, history, undone}; 
+// This is also the punchline:
+//
+// We can wrap *any* monad in functions like "undoable", it's just a
+// monad transform.
+function undoable(inner) {
+    function update(method) {
+	return (state, ...args) => ({
+	    inner: method(state.inner, ...args),
+	    history: [...state.history, state.inner],
+	    undone: []
+	});
     }
 
-    function undo() {
-	const last = state.history.length() - 1;
-	if (length > 0) {
+    
+    function get(method) {
+	return 
+    }
+
+    function undo(state) {
+	if (state.history.length > 0) {
+	    let last = state.history.length - 1;
+	    let inner = state.history[last];
 	    let history = state.history.slice(last);
-	    let undone = [...state.undone, state]
-	    let state = state.history[last];
-	    return {state, history, undone};
+	    let undone = [...state.undone, state.inner];
+	    return {inner, history, undone};
 	} else {
-	    return state;
-	    // XXX: or raise error.
+	    throw "Nothing to undo!";
 	}
     }
 
-    function redo() {
-	const last = state.redo.length() - 1;
-	if (length > 0) {
-	    let history = [...state.history, state];
-	    let undone = state.undone.slice(length);
-	    let state = state.undone[last];
+    function redo(state) {
+	if (state.undone.length > 0) {
+	    let last = state.undone.length - 1;
+	    let inner = state.undone[last];
+	    let history = [...state.history, state.inner];
+	    let undone = sate.undone.slice(last);
+	    return {inner, history, undone};
 	} else {
-	    return state;
-	    // XXX: or raise error.
+	    throw "Nothing to redo!";
 	}
     }
-
-    // Return an immutable wrapper around the underlying state,
-    // exposing any underlying methods.
-    return immutable(state, {undo, redo}).expose(
-	(state)          => state.wrapped,
-	(state, wrapped) => ({...state, wrapped})
+    
+    return monad(
+	{inner, history: [], undone: []},
+	{undo, redo,
+	 ...objmap(update, inner.methods),
+	 ...objmap(get, inner.properties)
+	}
     );
 }
 
@@ -255,10 +322,10 @@ function app(ops, tape, stack, accum) {
     // Render the new state to the dom.
     function render(state) {
 	console.log("render", state);
-	const calc = state.wrapped;
-	const accum = calc.state.accum;
-	const stack = calc.state.stack;
-	const tape = calc. state.tape;
+	const calc = state;
+	const accum = calc.accum();
+	const stack = calc.stack();
+	const tape = calc.tape();
 
 	console.debug("render", calc) /* accum, stack, tape);  */
 
@@ -294,46 +361,47 @@ function app(ops, tape, stack, accum) {
     // object into a stateful object.
     //
     // The monad generates the methods for us using the 
-    const calc = monad(undoable(calculator()), render);
+    let state = renderOnUpdate(undoable(calculator), render);
 
 
+    // This has survived several refactorings.
     // This keymap is hard-coded for now. Eventually we will make it
     // user-modifiable.
-    const keymap = {
-	'0': calc.digit(0),
-	'1': calc.digit(1),
-	'2': calc.digit(2),
-	'3': calc.digit(3),
-	'4': calc.digit(4),
-	'5': calc.digit(5),
-	'6': calc.digit(6),
-	'7': calc.digit(7),
-	'8': calc.digit(8),
-	'9': calc.digit(9),
-	'.': calc.decimal(),
-	'+': calc.operation('+'),
-	'-': calc.operation('-'),
-	'*': calc.operation('*'),
-	'/': calc.operation('/'),
-	'l': calc.operation('log'),
-	'^': calc.operation('pow'),
-	's': calc.operation('sin'),
-	'c': calc.operation('cos'),
-	'r': calc.operation('sqrt'),
-	'Enter':     calc.enter,
-	'Backspace': calc.undo,
-	'Tab':     calc.redo,
-	'Delete':    calc.clear,
-    };
+    function keymap(calc, event) {
+	switch(event.key) {
+	case '0': return calc.digit(0);
+	case '1': return calc.digit(1);
+	case '2': return calc.digit(2);
+	case '3': return calc.digit(3);
+	case '4': return calc.digit(4);
+	case '5': return calc.digit(5);
+	case '6': return calc.digit(6);
+	case '7': return calc.digit(7);
+	case '8': return calc.digit(8);
+	case '9': return calc.digit(9);
+	case '.': return calc.decimal();
+	case '+': return calc.operation('+');
+	case '-': return calc.operation('-');
+	case '*': return calc.operation('*');
+	case '/': return calc.operation('/');
+	case 'l': return calc.operation('log');
+	case '^': return calc.operation('pow');
+	case 's': return calc.operation('sin');
+	case 'c': return calc.operation('cos');
+	case 'r': return calc.operation('sqrt');
+	case 'Enter':     return calc.enter;
+	case 'Backspace': return calc.undo;
+	case 'Tab':       return calc.redo;
+	case 'Delete':    return calc.clear;
+	default:
+	    console.log('unknown key', event.key);
+	};
+    }
 
     function keydown (event) {
 	console.log(event);
 	event.preventDefault();
-	if (event.key in keymap) {
-	    keymap[event.key]();
-	} else {
-	    console.log('unknown key', event.key);
-	}
+	keymap(state, event);
     };
 
     return {...calc, keydown};
