@@ -6,6 +6,12 @@
 // Everything is a monad. If I was new to functional programming, i
 // would have no idea what is going on in this file.
 
+// Helper for debugging in expressions.
+function debug(prefix, expr) {
+    console.log(prefix, expr);
+    return args[0];
+}
+
 
 // Simple assert is used for testing in a couple places.
 function assert(cond) {
@@ -36,41 +42,121 @@ function objmap(func, obj) {
 // a monad.
 //
 // Return an opaque object containing corresponding mutators and setters.
-function monad(spec) {
-    spec.methods = spec.methods || {};
-    spec.properties = spec.properties || {};
-    const {priv, methods, properties} = spec;
+const monad = (function () {
+    // Construct a new monad from a spec.
+    function construct(spec) {
+	const {priv, methods, properties} = spec;
 
-    function update(method) {
-	return (...args) => monad({priv: method(priv, ...args), methods, properties});
-    }
+	function map(mapspec) {
+	    const {apply, unapply} = mapspec;
+	    
+	    const method   = (m) => (s, ...a) => apply(s, m(unapply(s), ...a));
+	    const property = (p) => (s, ...a) => p(unapply(s), ...a);
 
-    function get(prop) {
-	return (...args) => prop(priv, ...args);
-    }
+	    return construct({
+		priv:       apply(priv),
+		methods:    objmap(method, methods),
+		properties: objmap(property, methods)
+	    });
+	}
 
-    function mutable(update) {
-	let state = priv;
+	function mutable(update) {
+	    let state = priv;
 
-	const method = (m) => (s, ...a) => {
-	    state = m(s, ...a);
-	    update(state);
-	};
+	    const method = (m) => (s, ...a) => {
+		state = m(s, ...a);
+		update(state);
+	    };
 
-	const property = (p) => (s, ...a) => p
-    
+	    const property = (p) => (s, ...a) => p
+	    
+	    return {
+		...objmap(method, methods),
+		...objmap(property, properties)
+	    };
+	}
+
+	const update = (method) => (...args) => construct({
+	    priv: method(priv, ...args),
+	    methods,
+	    properties
+	});
+
+	const get = (prop) => (...args) => prop(priv, ...args);
+
+	const fold_methods = (methods) => construct(
+	    {...spec, methods: {...spec.methods, ...methods}}
+	);
+
+	const fold_properties = (properties) => construct(
+	    {...spec, properties: {...spec.properties, ...properties}}
+	);
+
+	// Compose this monad with another.
+	function compose (composition) {
+	    // Map our functions to the left
+	    let left = map({
+		apply: composition.compose,
+		unapply: composition.left
+	    }).spec;
+
+	    // Map other functions to the right
+	    let right = composition.monad.map({
+		apply: composition.compose,
+		unapply: composition.right
+	    }).spec;
+
+	    // Return the composition
+	    return lift(composition.compose(priv, composition.priv))
+		.methods(left.methods)
+	        .methods(right)
+	        .properties(left)
+	        .properties(right)
+	}
+
 	return {
-	    ...objmap(method, methods),
-	    ...(objmap(property, properties))
+	    ...objmap(get, properties),
+	    ...objmap(update, methods),
+	    methods: fold_methods,
+	    properties: fold_properties,
+	    map,
+	    compose,
+	    mutable,
+	    spec
 	};
     }
 
-    return {
-	...objmap(update, methods),
-	...objmap(get, properties),
-	mutable,
-    };
-}
+    // Lift a plain value into a monad.
+    function lift(priv) {
+	return construct({priv, methods: {}, properties: {}});
+    }
+
+    return {construct, lift};
+})();
+
+
+// After counter, the simplest monad we can define. 
+const obj = (function () {
+    function get(state, name) {
+	return state[name];
+    }
+
+    function set(state, name, value) {
+	return {...state, [name]: value};
+    }
+
+    function inner(state, ...args) {return state};
+
+    function update(state, priv) {
+	console.log(state, priv);
+	return priv;
+    }
+
+    return monad
+	.lift({})
+        .methods({set})
+        .properties({get, inner});
+})();
 
 
 // A monad representing the calculator's input accumulator.
@@ -130,11 +216,10 @@ const accumulator = (function () {
 	return state.type === "empty";
     }
     
-    return monad({
-	priv: empty,
-	methods: {clear, digit, decimal, letter},
-	properties: {value, isEmpty}
-    });
+    return monad
+	.lift(empty)
+	.methods({clear, digit, decimal, letter})
+	.properties({value, isEmpty});
 })();
 
 
@@ -180,11 +265,13 @@ const calculator = (function () {
 	stack: [],
 	tape: [],
 	defs: {},
-	accum: accumulator
     };
 
     // transfer accumulator to stack
-    function enter(state) {
+    function enter({left, right}) {
+	let state = left;
+	let accum = right;
+
 	if (!state.accum.isEmpty()) {
 	    let accum = state.accum.clear();
 	    let value = state.accum.value();
@@ -193,14 +280,16 @@ const calculator = (function () {
 		: value;
 	    let stack = [...state.stack, numeric];
 	    let tape = [...state.tape, value];
-	    return {...state, stack, accum, tape};
+	    return {left: {...state, stack, tape}, right: accum};
 	} else {
 	    return state;
 	}
     }
 
     // apply operator to stack
-    function operator(state, operator) {
+    function operator({left, right}, operator) {
+	let state = left;
+	let accum = right;
 	// Ensure accumulator contents are transfered to stack.
 	let auto_enter = enter(state);
 
@@ -234,17 +323,21 @@ const calculator = (function () {
     function defs(state) { return state.defs };
     function stack(state) { return state.stack };
 
-    // Re-expose the key behavior from accumulator
-    const digit   = (state, d) => ({...state, accum: state.accum.digit(d)});
-    const decimal = (state)    => ({...state, accum: state.accum.decimal()});
-    const letter  = (state, l) => ({...state, accum: state.accum.letter(l)});
-    const accum   = (state)    => state.accum.value();
-
-    return monad({
-	priv: init,
-	properties: {top, stack, defs, tape, accum},
-	methods: {reset, enter, digit, decimal, letter, operator},
-    });
+    return monad
+	.lift(init)
+        .properties({top, stack, defs, tape})
+        .compose({
+	    monad:   accumulator,
+	    compose: (state, accum) => {state, accum},
+	    left:    ({state})      => state,
+	    right:   ({accum})      => accum
+	})
+	.properties({
+	    accum: ({accum}) => accum.value()
+	})
+        .methods({
+	    reset, enter, operator
+	});
 })();
 
 
@@ -293,8 +386,7 @@ function undoable(inner) {
     return monad({
 	priv: {inner, history: [], undone: []},
 	methods: {undo, redo, ...objmap(update, inner.methods)},
-	 ...objmap(get, inner.properties)
-	}
+	properties: objmap(get, inner.properties)
     });
 }
 
