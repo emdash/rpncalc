@@ -7,9 +7,9 @@
 // would have no idea what is going on in this file.
 
 // Helper for debugging in expressions.
-function debug(prefix, expr) {
-    console.log(prefix, expr);
-    return args[0];
+function debug(expr) {
+    console.log("debug", expr);
+    return expr;
 }
 
 
@@ -19,6 +19,10 @@ function assert(cond) {
 	throw "Assertion failed";
     }
 }
+
+
+// Compose two functions
+function compose(f, g) { return (...args) => f(...g(...args)) }
 
 
 // Return a new object, applying func to every value in obj.
@@ -56,7 +60,7 @@ const monad = (function () {
 	    return construct({
 		priv:       apply(priv),
 		methods:    objmap(method, methods),
-		properties: objmap(property, methods)
+		properties: objmap(property, properties)
 	    });
 	}
 
@@ -383,7 +387,7 @@ function undoable(inner) {
 	}
     }
     
-    return monad({
+    return monad.construct({
 	priv: {inner, history: [], undone: []},
 	methods: {undo, redo, ...objmap(update, inner.methods)},
 	properties: objmap(get, inner.properties)
