@@ -113,6 +113,7 @@ const accumulator = (function () {
 })();
 
 
+// Calculator as a whole
 const calculator = (function () {
     // This function has survived several refactorings
     //
@@ -155,19 +156,19 @@ const calculator = (function () {
 	stack: [],
 	tape: [],
 	defs: {},
-	accum: accumulator.init
+	accum: accumulator.init,
     };
 
     // transfer accumulator to stack
     function enter(state) {
 	if (!accumulator.properties.isEmpty(state.accum)) {
-	    let value = accumulator.properties.value(state.accum);
-	    let accum = accumulator.methods.clear(state.accum);
-	    let numeric = (typeof(value) === "string")
+	    const value = accumulator.properties.value(state.accum);
+	    const accum = accumulator.methods.clear(state.accum);
+	    const numeric = (typeof(value) === "string") && state.defs[value]
 		? state.defs[value]
 		: value;
-	    let stack = [...state.stack, numeric];
-	    let tape = [...state.tape, value];
+	    const stack = [...state.stack, numeric];
+	    const tape = [...state.tape, value];
 	    return {...state, stack, tape, accum};
 	} else {
 	    return state;
@@ -177,13 +178,13 @@ const calculator = (function () {
     // apply operator to stack
     function operator(state, operator) {
 	// Ensure accumulator contents are transfered to stack.
-	let auto_enter = enter(state);
+	const auto_enter = enter(state);
 
 	assert(accumulator.properties.isEmpty(auto_enter.accum));
 	assert(operator in auto_enter.ops);
 
-	let stack = auto_enter.ops[operator](auto_enter.stack);
-	let tape = [...auto_enter.tape, operator];
+	const stack = auto_enter.ops[operator](auto_enter.stack);
+	const tape = [...auto_enter.tape, operator];
 	return {...auto_enter, stack, tape};
     }
 
@@ -204,19 +205,38 @@ const calculator = (function () {
 	}
     }
 
+    // Store top of stack into slot
+    function store(state) {
+	let auto_enter = enter(state);
+	const length = auto_enter.stack.length;
+	const pivot = length - 2;
+
+	if (length >= 2) {
+	    const [value, slot] = auto_enter.stack.slice(pivot);
+	    const stack = auto_enter.stack.slice(0, pivot);
+	    const defs = {...auto_enter.defs, [slot]: value};
+	    const tape = [...auto_enter.tape, "="];
+	    return {...auto_enter, stack, defs};
+	} else {
+	    return state;
+	}
+    }
+    
+
     // Accessors
     const accum = (state) => accumulator.properties.value(state.accum);
 
-    return {
+    return undoable({
 	init,
 	properties: {top, accum},
 	methods: {
 	    reset,
 	    enter,
+	    store,
 	    operator,
 	    ...hoist_methods('accum', accumulator)
 	}
-    };
+    });
 })();
 
 
@@ -297,16 +317,19 @@ function app(ops, tape, stack, accum) {
     }
 
     // Render the new state to the dom.
-    function render(state) {
+    function render(full) {
+	const state = full.inner;
+
 	tape.innerHTML = "";
 	stack.innerHTML = "";
+	ops.innerHTML = "";
 
 	accum.innerHTML = (function (accum) { switch(accum.type) {
 	    case "empty": return "";
 	    case "dec":   return accum.dec;
 	    case "float": return `${accum.dec}.${accum.frac}`;
-	    case "word":  return accum.word;
-	}; })(state.accum);
+	    case "word":  return accum.value;
+	};})(state.accum);
 
 	for (let val of state.stack) {
 	    stack.appendChild(item(val));
@@ -314,6 +337,11 @@ function app(ops, tape, stack, accum) {
 
 	for (let token of state.tape) {
 	    tape.appendChild(item(token));
+	}
+
+	for (let key in state.defs) {
+	    const def = state.defs[key];
+	    ops.appendChild(item(`${key}: ${def}`));
 	}
     }
 
@@ -350,6 +378,8 @@ function app(ops, tape, stack, accum) {
 	case '8': return state.digit(8);
 	case '9': return state.digit(9);
 	case '.': return state.decimal();
+	case 'x': return state.letter('x');
+	case 'y': return state.letter('y');
 	case '+': return state.operator('+');
 	case '-': return state.operator('-');
 	case '*': return state.operator('*');
@@ -359,6 +389,7 @@ function app(ops, tape, stack, accum) {
 	case 's': return state.operator('sin');
 	case 'c': return state.operator('cos');
 	case 'r': return state.operator('sqrt');
+	case '=': return state.store();
 	case 'Enter':     return state.enter();
 	case 'Backspace': return state.undo();
 	case 'Tab':       return state.redo();
