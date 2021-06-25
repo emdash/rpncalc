@@ -260,7 +260,7 @@ function undoable({init, methods, properties}) {
 	if (state.history.length > 0) {
 	    let last = state.history.length - 1;
 	    let inner = state.history[last];
-	    let history = state.history.slice(last);
+	    let history = debug(state.history.slice(0, last));
 	    let undone = [...state.undone, state.inner];
 	    return {inner, history, undone};
 	} else {
@@ -300,7 +300,7 @@ function mutable({init, methods, properties}, update) {
 // Top level calculator object
 //
 // Arguments are the dom elements to update in `render()`.
-function app(ops, tape, stack, accum) {
+function app(vars, tape, stack, accum, keypad) {
     // Helper method for rendering an item.
     function item(item) {	
 	const ret = document.createElement("div");
@@ -316,13 +316,33 @@ function app(ops, tape, stack, accum) {
 	return ret;
     }
 
+    function action(click, ...contents) {
+	const ret = document.createElement("button");
+	for (let child of contents) {
+	    ret.appendChild(child);
+	}
+	ret.addEventListener('onclick', click);
+	return ret;
+    }
+
+    function key(label, layout, action) {
+	const ret = action(action, label);
+	const left = (layout.col / layout.cols) + "%";
+	const top  = (layout.row / layout.rows) + "%";
+	
+	ret.style.left = left;
+	ret.style.top = tops;
+
+	return ret;
+    }
+
     // Render the new state to the dom.
     function render(full) {
 	const state = full.inner;
 
 	tape.innerHTML = "";
 	stack.innerHTML = "";
-	ops.innerHTML = "";
+	vars.innerHTML = "";
 
 	accum.innerHTML = (function (accum) { switch(accum.type) {
 	    case "empty": return "";
@@ -341,7 +361,7 @@ function app(ops, tape, stack, accum) {
 
 	for (let key in state.defs) {
 	    const def = state.defs[key];
-	    ops.appendChild(item(`${key}: ${def}`));
+	    vars.appendChild(item(`${key}: ${def}`));
 	}
     }
 
@@ -410,10 +430,11 @@ function app(ops, tape, stack, accum) {
 
 // Create a calculator component using the following dom elements
 const calc = app(
-    document.getElementById("ops"),
+    document.getElementById("vars"),
     document.getElementById("tape"),
     document.getElementById("stack"),
-    document.getElementById("accum")
+    document.getElementById("accum"),
+    document.getElementById("keypad"),
 );
 
 // Hook up keyboard handlers through the keymap.

@@ -8,8 +8,43 @@
 	  user-select: none;
       }
 
-      h1 {
-	  font-family: "arial";
+      row {
+	  display: block;
+	  width: 100%;
+      }
+
+      button {
+	  margin: 0.5em;
+	  width: 5em;
+	  text-align: center;
+      }
+
+      #state[show_keypad="false"] > #keypad {
+	  position: absolute;
+	  bottom: 0;
+	  right: 1em;
+	  border: 1px solid black;
+	  background-color: white;
+	  text-align: center;
+	  padding: 0.25em;
+	  border-radius: 0.25em;
+      }
+
+      #state[show_keypad="false"] #keypad button {
+	  display: none;
+      }
+
+      #state[show_keypad="true"] #keypad {
+	  position: absolute;
+	  background-color: white;
+	  top: 0;
+	  left: 25%;
+	  right: 0;
+	  bottom: 2.5em;
+      };
+
+      #state[show_keypad="true"] #keypad div {
+	  display: none;
       }
 
       #state {
@@ -23,27 +58,27 @@
 
       #tape-container {
 	  position: absolute;
-	  width: 25em;
+	  width: 25%;
 	  top: 0;
 	  right: 0;
-	  bottom: 6em;
+	  bottom: 2.5em;
 	  border-left: 1px solid black;
 	  padding-left: 1em;
       }
 
       #stack-container {
 	  position: absolute;
-	  width: 25em;
+	  width: 25%;
 	  top: 0;
 	  left: 0;
       }
 
-      #ops-container {
+      #vars-container {
 	  position: absolute;
-	  left: 25em;
-	  right: 25em;
+	  left: 25%;
+	  right: 50%;
 	  top: 0;
-	  bottom: 6em;
+	  bottom: 2.5em;
 	  padding-left: 1em;
 	  border-left: 1px solid black;
       }
@@ -53,12 +88,12 @@
 	  bottom: 0;
 	  left: 0;
 	  right: 0;
-	  height: 5em;
+	  height: 2.5em;
 	  border-top: 1px solid black;
       }
 
       #accum {
-	  font-size:24pt;
+	  font-size:18pt;
 	  margin: 0;
 	  padding: 0;
 	  margin-left: .5em;
@@ -70,12 +105,14 @@
 
       h1 {
 	  display: inline-block;
+	  font-family: "arial";
+	  font-size: 26pt;
       }
 
       #cursor {
 	  -webkit-animation: .75s linear infinite condemned_blink_effect; /* for Safari 4.0 - 8.0 */
 	  animation: .75s linear infinite condemned_blink_effect;
-	  font-size:26pt;
+	  font-size: 26pt;
 	  border-bottom: 2px solid black;
 	  margin: 0;
 	  padding: 0;
@@ -108,7 +145,7 @@
     </style>
   </head>
   <body>
-    <div id="state">
+    <div id="state" show_keypad="false">
       <div id="stack-container">
 	<h1>Stack</h1>
 	<div id="stack"></div>
@@ -117,15 +154,41 @@
 	<h1>Tape</h1>
 	<div id="tape"></div>
       </div>
-      <div id="ops-container">
-	<h1>Functions</h1>
-	<div id="ops"></div>
+      <div id="vars-container">
+	<h1>Vars</h1>
+	<div id="vars"></div>
       </div>
       <div id="accum-container">
 	<span>
 	  <h1>Accum</h1>
 	</span>
 	<span id="accum"></span><span id="cursor">&nbsp;</span>
+      </div>
+      <div id="keypad">
+	<div onclick="document.getElementById('state').setAttribute('show_keypad', JSON.stringify(!JSON.parse(document.getElementById('state').getAttribute('show_keypad'))))">
+	  <h1>&#x2328;</h1>
+	</div>
+	<div>Keypad</div>
+	<row>
+	  <button onclick="calc.digit(7)">7</button>
+	  <button onclick="calc.digit(8)">8</button>
+	  <button onclick="calc.digit(9)">0</button>
+	</row>
+	<row>
+	  <button onclick="calc.digit(4)">4</button>
+	  <button onclick="calc.digit(5)">5</button>
+	  <button onclick="calc.digit(6)">6</button>
+	</row>
+	<row>
+	  <button onclick="calc.digit(1)">1</button>
+	  <button onclick="calc.digit(2)">2</button>
+	  <button onclick="calc.digit(3)">3</button>
+	</row>
+	<row>
+	  <button onclick="calc.digit(0)">0</button>
+	  <button onclick="calc.decimal()">.</button>
+	  <button onclick="calc.enter()">enter</button>
+	</row>
       </div>
     </div>
     <script src="mikescalc.js"></script>
