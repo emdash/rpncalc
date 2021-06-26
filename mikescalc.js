@@ -2,9 +2,10 @@
 
 
 // Experimental functional approach to writing this.
-//
-// Everything is a monad. If I was new to functional programming, i
-// would have no idea what is going on in this file.
+
+
+/*** Functional helpers ************************************************/
+
 
 // Helper for debugging in expressions.
 function debug(expr, ...other) {
@@ -21,9 +22,17 @@ function assert(cond) {
 }
 
 
+// Call `f()` and return its result, or `err` if `f()` throws.
+function trap(f, err) {
+    try {
+	return f();
+    } catch (e) {
+	return err;
+    }
+}
+
+
 // Return a new object, applying func to every value in obj.
-//
-// This is used a bunch.
 function objmap(func, obj) {
     const ret = {};
     let key;
@@ -38,6 +47,10 @@ function objmap(func, obj) {
 }
 
 
+// Dynamic dispatch for javascript
+const mux = (map) => (key, ...args) => map[key](...args);
+
+
 // helpers for composing functions on composed states
 const hoist_method = (slot) => (method) => (state, ...args) => ({
     ...state,
@@ -48,14 +61,14 @@ const hoist_methods  = (slot, module) => objmap(hoist_method(slot), module.metho
 const hoist_props    = (slot, module) => objmap(hoist_property(slot), module.properties);
 
 
-// single-page app helpers *****************************************************/
+// rendering helpers *****************************************************/
 
 
 // generic element constructor
 function el(name, attrs, ...children) {
     const ret = document.createElement(name);
     for (let key in attrs) {
-	ret.setAttribute(key, attrs[key])
+	ret.setAttribute(key, attrs[key]);
     }
     for (let child of children) {
 	if (typeof child === "string") {
@@ -67,13 +80,12 @@ function el(name, attrs, ...children) {
     return ret;
 }
 
-// standard elements
-const div = (attrs, ...children) => el("div", attrs, ...children);
-const button = (attrs, ...children) => el("button", attrs, ...children);
 
-// our layout types
-const row = (...children) => el("row", {}, ...children);
-const col = (...children) => el("col", {}, ...children);
+// standard elements
+const div    = (attrs, ...children) => el("div",    attrs, ...children);
+const span   = (attrs, ...children) => el("span",   attrs, ...children);
+const button = (attrs, ...children) => el("button", attrs, ...children);
+const h1     = (...children)        => el("h1",     {},    ...children);
 
 
 // A monad representing the calculator's input accumulator.
@@ -329,60 +341,64 @@ function mutable({init, methods, properties}, update) {
 // Top level calculator object
 //
 // Arguments are the dom elements to update in `render()`.
-function app(vars, tape, stack, accum, keypad) {
-    const item = (name, ...contents) => el("div", ...contents);
+function app(element) {
+    const container = (id, name, ...content) => div({id}, h1(name), ...content);
+    const item = (...contents) => div({}, ...contents);
+    const append = (...items) => element.appendChild(...items);
     
-    // Helper method to render a key-value pair.
-    function pair(name, value) {
-	return el(
-	    "pair", {},
-	    el("name", {}, name),
-	    el("value", {}, value)
-	);
-    }
-
-    function action(click, ...contents) {
-	const ret = button({}, ...contents);
-	ret.addEventListener('onclick', click);
-	return ret;
-    }
-
     // Render the new state to the dom.
-    function render(full) {
-	const state = full.inner;
+    function render(full_state) {
+	const calc = full_state.inner;
+	element.innerHTML = "";
 
-	tape.innerHTML = "";
-	stack.innerHTML = "";
-	vars.innerHTML = "";
-	keypad.innerHTML = "";
+	const state_button = (state, selected) => {
+	    const is_selected = (state == selected);
+	    const attrs = is_selected ? {selected: "true"} : {};
+	    return button(attrs, state);
+	};
 
-	accum.innerHTML = (function (accum) { switch(accum.type) {
-	    case "empty": return "";
-	    case "dec":   return accum.dec;
-	    case "float": return `${accum.dec}.${accum.frac}`;
-	    case "word":  return accum.value;
-	};})(state.accum);
+	const selected = "10-key";
 
-	for (let val of state.stack) {
-	    stack.appendChild(item(val));
-	}
+	// Render the "tool strip"
+	append(div({id: "tools"}, ...[
+	    "desktop",
+	    "10-key",
+	    "eng",
+	    "trig",
+	    "vars",
+	    "functions",
+	    "+",
+	].map(label => state_button(label, selected))));
 
-	for (let token of state.tape) {
-	    tape.appendChild(item(token));
-	}
+	// Render the stack
+	append(container(
+	    "stack-container", "Stack", div({id: "stack"}),
+	    ...calc.stack.map((val) => div({}, val))
+	));
 
-	for (let key in state.defs) {
-	    const def = state.defs[key];
-	    vars.appendChild(item(`${key}: ${def}`));
-	}
+	// Render the variable window
+	append(container(
+	    "vars-container", "Vars", div({id: "vars"}),
+	    ...Object.getOwnPropertyNames(calc.defs).map(
+		item => `${item}: ${state.defs[item]}`
+	    )
+	));
 
-	keypad.setAttribute("rows", layout.rows);
-	keypad.setAttribute("cols", layout.cols);
-	for (let {x, y, label, action} of layout.keys) {
-	    const b = button({x, y}, label);
-	    b.addEventListener("click", action);
-	    keypad.appendChild(b);
-	}
+	// Render the current program tape
+	append(container(
+	    "tape-container", "Tape", div({id: "tape"}),
+	    ...calc.tape.map((val) => div({}, val))
+	));
+
+	// Render the accumulator
+	append(container(
+	    "accum-container", "Accum",
+	    span({id: "accum"}, trap(() => state.accum(state), "")),
+	    span({id: "cursor"}, "_")
+	));
+
+	// Render the keypad
+	append(div({id: "keypad-container"}, "tbd"));
     }
 
     // This is where we introduce mutable state.
@@ -477,13 +493,7 @@ function app(vars, tape, stack, accum, keypad) {
 }
 
 // Create a calculator component using the following dom elements
-const calc = app(
-    document.getElementById("vars"),
-    document.getElementById("tape"),
-    document.getElementById("stack"),
-    document.getElementById("accum"),
-    document.getElementById("keypad"),
-);
+const calc = app(document.getElementById("state"));
 
 // Hook up keyboard handlers through the keymap.
 window.addEventListener('keydown', calc.keydown);

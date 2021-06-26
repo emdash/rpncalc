@@ -115,7 +115,7 @@
 	  -webkit-animation: .75s linear infinite condemned_blink_effect; /* for Safari 4.0 - 8.0 */
 	  animation: .75s linear infinite condemned_blink_effect;
 	  font-size: 26pt;
-	  border-bottom: 2px solid black;
+	  //border-bottom: 2px solid black;
 	  margin: 0;
 	  padding: 0;
       }
@@ -147,36 +147,7 @@
     </style>
   </head>
   <body>
-    <div id="state" showing="state">
-      <div id="tools">
-	<button>prog</button>
-	<button>digits</button>
-	<button>letters</button>
-	<button>scientific</button>
-	<button>trig</button>
-      </div>
-      <div id="stack-container" class="state">
-	<h1>Stack</h1>
-	<div id="stack"></div>
-      </div>
-      <div id="tape-container" class="state">
-	<h1>Tape</h1>
-	<div id="tape"></div>
-      </div>
-      <div id="vars-container" class="state">
-	<h1>Vars</h1>
-	<div id="vars"></div>
-      </div>
-      <div id="accum-container" class="state">
-	<span>
-	  <h1>Accum</h1>
-	</span>
-	<span id="accum"></span><span id="cursor">&nbsp;</span>
-      </div>
-      <div id="keypad-container">
-	<div id="keypad"></div>
-      </div>
-    </div>
+    <div id="state" showing="state"></div>
     <script src="mikescalc.js"></script>
   </body>
 </html>
