@@ -40,14 +40,14 @@
 	  padding: 0.5em;
       }
 
-      #state[showing="state"] {
+      #state[showing="desktop"] {
 	  grid-template-areas:
 	      "stack tools tools"
 	      "stack vars tape"
 	      "accum accum accum";
       }
 
-      #state[showing="keypad"] {
+      #state:not([showing="desktop"]) {
 	  grid-template-areas:
 	      "stack tools  tools"
 	      "stack keypad keypad"
@@ -58,15 +58,15 @@
 	  grid-area: keypad;
       }
 
-      #state[showing="state"] > #keypad-container {
+      #state:not([showing="keypad"]) > #keypad-container {
 	  display: none;
       }
       
-      #state[showing="keypad"] > #vars-container {
+      #state:not([showing="desktop"]) > #vars-container {
 	  display: none;
       }
 
-      #state[showing="keypad"] > #tape-container {
+      #state:not([showing="desktop"]) > #tape-container {
 	  display: none;
       }
 
@@ -151,7 +151,7 @@
     </style>
   </head>
   <body>
-    <div id="state" showing="state"></div>
+    <div id="state" showing="desktop"></div>
     <script src="mikescalc.js"></script>
   </body>
 </html>

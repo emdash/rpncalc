@@ -61,6 +61,62 @@ const hoist_methods  = (slot, module) => objmap(hoist_method(slot), module.metho
 const hoist_props    = (slot, module) => objmap(hoist_property(slot), module.properties);
 
 
+// Undoable monad transformer
+function undoable({init, methods, properties}) {
+    function update(method) {
+	return (state, ...args) => ({
+	    inner: method(state.inner, ...args),
+	    history: [...state.history, state.inner],
+	    undone: []
+	});
+    }
+
+    function get(prop) {
+	return (state, ...args) => prop(state, ...args);
+    }
+
+    function undo(state) {
+	if (state.history.length > 0) {
+	    let last = state.history.length - 1;
+	    let inner = state.history[last];
+	    let history = debug(state.history.slice(0, last));
+	    let undone = [...state.undone, state.inner];
+	    return {inner, history, undone};
+	} else {
+	    throw "Nothing to undo!";
+	}
+    }
+
+    function redo(state) {
+	if (state.undone.length > 0) {
+	    let last = state.undone.length - 1;
+	    let inner = state.undone[last];
+	    let history = [...state.history, state.inner];
+	    let undone = sate.undone.slice(last);
+	    return {inner, history, undone};
+	} else {
+	    throw "Nothing to redo!";
+	}
+    }
+    
+    return {
+	init: {inner: init, history: [], undone: []},
+	methods: {...objmap(update, methods), undo, redo},
+	properties: objmap(get, properties)
+    };
+}
+
+
+// Mutable monad consumer
+function mutable({init, methods, properties}, update) {
+    let state = init;
+    const method   = (m) => (...args) => {state = m(state, ...args); update(state);};
+    const property = (p) => (...args) => p(state, ...args);
+
+    return {...objmap(method, methods), ...objmap(property, properties)};
+}
+
+
 // rendering helpers *****************************************************/
 
 
@@ -197,6 +253,7 @@ const calculator = (function () {
 	tape: [],
 	defs: {},
 	accum: accumulator.init,
+	showing: "desktop"
     };
 
     // transfer accumulator to stack
@@ -261,8 +318,12 @@ const calculator = (function () {
 	    return state;
 	}
     }
-    
 
+    //
+    function show(state, showing) {
+	return {...state, showing};
+    }
+    
     // Accessors
     const accum = (state) => accumulator.properties.value(state.accum);
 
@@ -274,68 +335,11 @@ const calculator = (function () {
 	    enter,
 	    store,
 	    operator,
+	    show,
 	    ...hoist_methods('accum', accumulator)
 	}
     });
 })();
-
-
-// This is the punchline:
-//
-// We can wrap structures in undoable.
-function undoable({init, methods, properties}) {
-    function update(method) {
-	return (state, ...args) => ({
-	    inner: method(state.inner, ...args),
-	    history: [...state.history, state.inner],
-	    undone: []
-	});
-    }
-
-    function get(prop) {
-	return (state, ...args) => prop(state, ...args);
-    }
-
-    function undo(state) {
-	if (state.history.length > 0) {
-	    let last = state.history.length - 1;
-	    let inner = state.history[last];
-	    let history = debug(state.history.slice(0, last));
-	    let undone = [...state.undone, state.inner];
-	    return {inner, history, undone};
-	} else {
-	    throw "Nothing to undo!";
-	}
-    }
-
-    function redo(state) {
-	if (state.undone.length > 0) {
-	    let last = state.undone.length - 1;
-	    let inner = state.undone[last];
-	    let history = [...state.history, state.inner];
-	    let undone = sate.undone.slice(last);
-	    return {inner, history, undone};
-	} else {
-	    throw "Nothing to redo!";
-	}
-    }
-    
-    return {
-	init: {inner: init, history: [], undone: []},
-	methods: {...objmap(update, methods), undo, redo},
-	properties: objmap(get, properties)
-    };
-}
-
-
-// Mutable wrapper
-function mutable({init, methods, properties}, update) {
-    let state = init;
-    const method   = (m) => (...args) => {state = m(state, ...args); update(state);};
-    const property = (p) => (...args) => p(state, ...args);
-
-    return {...objmap(method, methods), ...objmap(property, properties)};
-}
 
 
 // Top level calculator object
@@ -349,15 +353,20 @@ function app(element) {
     // Render the new state to the dom.
     function render(full_state) {
 	const calc = full_state.inner;
+	const selected = calc.showing;
+
+	element.setAttribute("showing", selected);
+
 	element.innerHTML = "";
 
-	const state_button = (state, selected) => {
-	    const is_selected = (state == selected);
-	    const attrs = is_selected ? {selected: "true"} : {};
-	    return button(attrs, state);
-	};
+	const tab_button = (tab, selected) => {
+	    const is_selected = (tab === selected);
+	    const ret = button(is_selected ? {selected: "true"} : {}, tab);
 
-	const selected = "10-key";
+	    // actually want to invoke method on state here.
+	    ret.addEventListener("click", () => state.show(debug(tab)));
+	    return ret;
+	};
 
 	// Render the "tool strip"
 	append(div({id: "tools"}, ...[
@@ -368,7 +377,7 @@ function app(element) {
 	    "vars",
 	    "functions",
 	    "+",
-	].map(label => state_button(label, selected))));
+	].map(label => tab_button(label, selected))));
 
 	// Render the stack
 	append(container(
