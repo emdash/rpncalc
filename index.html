@@ -8,88 +8,89 @@
 	  user-select: none;
       }
 
-      row {
-	  display: block;
-	  width: 100%;
-      }
-
       button {
 	  margin: 0.5em;
-	  width: 5em;
-	  text-align: center;
-      }
-
-      #state[show_keypad="false"] > #keypad {
-	  position: absolute;
-	  bottom: 0;
-	  right: 1em;
+	  background: white;
 	  border: 1px solid black;
-	  background-color: white;
-	  text-align: center;
-	  padding: 0.25em;
 	  border-radius: 0.25em;
+	  text-align: center;
+	  font-size: 24pt;
       }
 
-      #state[show_keypad="false"] #keypad button {
-	  display: none;
+      button:hover {
+	  background: grey;
       }
 
-      #state[show_keypad="true"] #keypad {
-	  position: absolute;
-	  background-color: white;
-	  top: 0;
-	  left: 25%;
-	  right: 0;
-	  bottom: 2.5em;
-      };
-
-      #state[show_keypad="true"] #keypad div {
-	  display: none;
+      button:active {
+	  background: black;
+	  color: white;
       }
 
       #state {
-	  margin: 1em;
-	  position: fixed;
-	  top: 0;
-	  left: 0;
-	  right: 0;
+	  display: grid;
+	  grid-template-rows: 1fr 10fr 1fr;
+	  grid-template-columns: 1fr 1fr 1fr;
+	  grid-gap: 0.5em;
+
+	  position: absolute;
 	  bottom: 0;
+	  top: 0;
+	  right: 0;
+	  left: 0;
+	  padding: 0.5em;
+      }
+
+      #state[showing="state"] {
+	  grid-template-areas:
+	      "stack tools tools"
+	      "stack vars tape"
+	      "accum accum accum";
+      }
+
+      #state[showing="keypad"] {
+	  grid-template-areas:
+	      "stack tools  tools"
+	      "stack keypad keypad"
+	      "accum accum accum";
+      }
+
+      #keypad-container {
+	  grid-area: keypad;
+      }
+
+      #state[showing="state"] > #keypad-container {
+	  display: none;
+      }
+      
+      #state[showing="keypad"] > #vars-container {
+	  display: none;
+      }
+
+      #state[showing="keypad"] > #tape-container {
+	  display: none;
       }
 
       #tape-container {
-	  position: absolute;
-	  width: 25%;
-	  top: 0;
-	  right: 0;
-	  bottom: 2.5em;
+	  grid-area: tape;
 	  border-left: 1px solid black;
-	  padding-left: 1em;
       }
 
       #stack-container {
-	  position: absolute;
-	  width: 25%;
-	  top: 0;
-	  left: 0;
+	  grid-area: stack;
       }
 
       #vars-container {
-	  position: absolute;
-	  left: 25%;
-	  right: 50%;
-	  top: 0;
-	  bottom: 2.5em;
-	  padding-left: 1em;
+	  grid-area: vars;
 	  border-left: 1px solid black;
       }
 
       #accum-container {
-	  position: absolute;
-	  bottom: 0;
-	  left: 0;
-	  right: 0;
-	  height: 2.5em;
+	  grid-area: accum;
 	  border-top: 1px solid black;
+      }
+
+      #tools {
+	  grid-area: tools;
       }
 
       #accum {
@@ -99,14 +100,11 @@
 	  margin-left: .5em;
       }
 
-      span {
-	  height: 100%;
-      }
-
       h1 {
 	  display: inline-block;
 	  font-family: "arial";
-	  font-size: 26pt;
+	  font-size: 18pt;
+	  margin-left: 0.25em;
       }
 
       #cursor {
@@ -145,50 +143,34 @@
     </style>
   </head>
   <body>
-    <div id="state" show_keypad="false">
-      <div id="stack-container">
+    <div id="state" showing="state">
+      <div id="tools">
+	<button>state</button>
+	<button>digits</button>
+	<button>letters</button>
+	<button>scientific</button>
+	<button>trig</button>
+      </div>
+      <div id="stack-container" class="state">
 	<h1>Stack</h1>
 	<div id="stack"></div>
       </div>
-      <div id="tape-container">
+      <div id="tape-container" class="state">
 	<h1>Tape</h1>
 	<div id="tape"></div>
       </div>
-      <div id="vars-container">
+      <div id="vars-container" class="state">
 	<h1>Vars</h1>
 	<div id="vars"></div>
       </div>
-      <div id="accum-container">
+      <div id="accum-container" class="state">
 	<span>
 	  <h1>Accum</h1>
 	</span>
 	<span id="accum"></span><span id="cursor">&nbsp;</span>
       </div>
-      <div id="keypad">
-	<div onclick="document.getElementById('state').setAttribute('show_keypad', JSON.stringify(!JSON.parse(document.getElementById('state').getAttribute('show_keypad'))))">
-	  <h1>&#x2328;</h1>
-	</div>
-	<div>Keypad</div>
-	<row>
-	  <button onclick="calc.digit(7)">7</button>
-	  <button onclick="calc.digit(8)">8</button>
-	  <button onclick="calc.digit(9)">0</button>
-	</row>
-	<row>
-	  <button onclick="calc.digit(4)">4</button>
-	  <button onclick="calc.digit(5)">5</button>
-	  <button onclick="calc.digit(6)">6</button>
-	</row>
-	<row>
-	  <button onclick="calc.digit(1)">1</button>
-	  <button onclick="calc.digit(2)">2</button>
-	  <button onclick="calc.digit(3)">3</button>
-	</row>
-	<row>
-	  <button onclick="calc.digit(0)">0</button>
-	  <button onclick="calc.decimal()">.</button>
-	  <button onclick="calc.enter()">enter</button>
-	</row>
+      <div id="keypad-container">
+	<div id="keypad"></div>
       </div>
     </div>
     <script src="mikescalc.js"></script>

@@ -48,6 +48,34 @@ const hoist_methods  = (slot, module) => objmap(hoist_method(slot), module.metho
 const hoist_props    = (slot, module) => objmap(hoist_property(slot), module.properties);
 
 
+// single-page app helpers *****************************************************/
+
+
+// generic element constructor
+function el(name, attrs, ...children) {
+    const ret = document.createElement(name);
+    for (let key in attrs) {
+	ret.setAttribute(key, attrs[key])
+    }
+    for (let child of children) {
+	if (typeof child === "string") {
+	    ret.appendChild(document.createTextNode(child));
+	} else {
+	    ret.appendChild(child);
+	}
+    }
+    return ret;
+}
+
+// standard elements
+const div = (attrs, ...children) => el("div", attrs, ...children);
+const button = (attrs, ...children) => el("button", attrs, ...children);
+
+// our layout types
+const row = (...children) => el("row", {}, ...children);
+const col = (...children) => el("col", {}, ...children);
+
+
 // A monad representing the calculator's input accumulator.
 //
 // It is mostly just a wrapper around the usual methods for parsing
@@ -251,7 +279,7 @@ function undoable({init, methods, properties}) {
 	    undone: []
 	});
     }
-    
+
     function get(prop) {
 	return (state, ...args) => prop(state, ...args);
     }
@@ -293,6 +321,7 @@ function mutable({init, methods, properties}, update) {
     let state = init;
     const method   = (m) => (...args) => {state = m(state, ...args); update(state);};
     const property = (p) => (...args) => p(state, ...args);
+
     return {...objmap(method, methods), ...objmap(property, properties)};
 }
 
@@ -301,38 +330,20 @@ function mutable({init, methods, properties}, update) {
 //
 // Arguments are the dom elements to update in `render()`.
 function app(vars, tape, stack, accum, keypad) {
-    // Helper method for rendering an item.
-    function item(item) {	
-	const ret = document.createElement("div");
-	ret.appendChild(document.createTextNode(item.toString()));
-	return ret;
-    }
-
+    const item = (name, ...contents) => el("div", ...contents);
+    
     // Helper method to render a key-value pair.
     function pair(name, value) {
-	const ret = document.createElement("div");
-	ret.appendChild(item(name));
-	ret.appendChild(item(value));
-	return ret;
+	return el(
+	    "pair", {},
+	    el("name", {}, name),
+	    el("value", {}, value)
+	);
     }
 
     function action(click, ...contents) {
-	const ret = document.createElement("button");
-	for (let child of contents) {
-	    ret.appendChild(child);
-	}
+	const ret = button({}, ...contents);
 	ret.addEventListener('onclick', click);
-	return ret;
-    }
-
-    function key(label, layout, action) {
-	const ret = action(action, label);
-	const left = (layout.col / layout.cols) + "%";
-	const top  = (layout.row / layout.rows) + "%";
-	
-	ret.style.left = left;
-	ret.style.top = tops;
-
 	return ret;
     }
 
@@ -343,6 +354,7 @@ function app(vars, tape, stack, accum, keypad) {
 	tape.innerHTML = "";
 	stack.innerHTML = "";
 	vars.innerHTML = "";
+	keypad.innerHTML = "";
 
 	accum.innerHTML = (function (accum) { switch(accum.type) {
 	    case "empty": return "";
@@ -363,6 +375,14 @@ function app(vars, tape, stack, accum, keypad) {
 	    const def = state.defs[key];
 	    vars.appendChild(item(`${key}: ${def}`));
 	}
+
+	keypad.setAttribute("rows", layout.rows);
+	keypad.setAttribute("cols", layout.cols);
+	for (let {x, y, label, action} of layout.keys) {
+	    const b = button({x, y}, label);
+	    b.addEventListener("click", action);
+	    keypad.appendChild(b);
+	}
     }
 
     // This is where we introduce mutable state.
@@ -380,8 +400,36 @@ function app(vars, tape, stack, accum, keypad) {
     //
     // The monad generates the methods for us using the 
     const state = mutable(calculator, render);
+    const key = (x, y, label, action) => ({x, y, label, action});
+    const layout = {
+	rows: 4,
+	cols: 4,
+	keys: [
+	    key(0, 0, "7",     () => state.digit(7)),
+	    key(0, 1, "8",     () => state.digit(8)),
+	    key(0, 2, "9",     () => state.digit(9)),
 
+	    key(1, 0, "4",     () => state.digit(4)),
+	    key(1, 1, "5",     () => state.digit(5)),
+	    key(1, 2, "6",     () => state.digit(6)),
 
+	    key(2, 0, "1",     () => state.digit(1)),
+	    key(2, 1, "2",     () => state.digit(2)),
+	    key(2, 2, "3",     () => state.digit(3)),
+
+	    key(3, 0, "0",     () => state.digit(0)),
+	    key(3, 1, ".",     () => state.decimal()),
+	    key(3, 2, "enter", () => state.enter()),
+
+	    key(0, 3, "+",     () => state.operator('+')),
+	    key(1, 3, "-",     () => state.operator('-')),
+	    key(2, 3, "*",     () => state.operator('*')),
+	    key(3, 3, "/",     () => state.operator('/'))
+	]
+    };
+
+    state.reset();
+	
     // This has survived several refactorings.
     // This keymap is hard-coded for now. Eventually we will make it
     // user-modifiable.
