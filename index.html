@@ -9,12 +9,12 @@
       }
 
       button {
-	  margin: 0.5em;
 	  background: white;
-	  border: 1px solid black;
-	  border-radius: 0.25em;
+	  border: none;
+	  border-left: 1px solid black;
 	  text-align: center;
-	  font-size: 24pt;
+	  font-size: 18pt;
+	  padding: 0.25em;
       }
 
       button:hover {
@@ -91,6 +91,10 @@
 
       #tools {
 	  grid-area: tools;
+	  display: grid;
+	  grid-template-rows: 1fr;
+	  grid-template-columns: repeat(5, 1fr);
+	  grid-gap: 0;
       }
 
       #accum {
@@ -145,7 +149,7 @@
   <body>
     <div id="state" showing="state">
       <div id="tools">
-	<button>state</button>
+	<button>prog</button>
 	<button>digits</button>
 	<button>letters</button>
 	<button>scientific</button>
