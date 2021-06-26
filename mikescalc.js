@@ -93,7 +93,7 @@ function undoable({init, methods, properties}) {
 	    let last = state.undone.length - 1;
 	    let inner = state.undone[last];
 	    let history = [...state.history, state.inner];
-	    let undone = sate.undone.slice(last);
+	    let undone = state.undone.slice(0, last);
 	    return {inner, history, undone};
 	} else {
 	    throw "Nothing to redo!";
