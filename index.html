@@ -9,12 +9,10 @@
       }
 
       button {
-	  background: white;
 	  border: none;
-	  border-left: 1px solid black;
 	  text-align: center;
-	  font-size: 18pt;
-	  padding: 0.25em;
+	  font-size: 100%;
+	  background-color: #dddddd;
       }
 
       button:hover {
@@ -28,7 +26,7 @@
 
       #state {
 	  display: grid;
-	  grid-template-rows: 1fr 10fr 1fr;
+	  grid-template-rows: 1fr 18fr 1fr;
 	  grid-template-columns: 1fr 1fr 1fr;
 	  grid-gap: 0.5em;
 
@@ -42,14 +40,14 @@
 
       #state[showing="desktop"] {
 	  grid-template-areas:
-	      "stack tools tools"
+	      "tools tools tools"
 	      "stack vars tape"
 	      "accum accum accum";
       }
 
       #state:not([showing="desktop"]) {
 	  grid-template-areas:
-	      "stack tools  tools"
+	      "tools tools  tools"
 	      "stack keypad keypad"
 	      "accum accum accum";
       }
@@ -94,11 +92,12 @@
 	  display: grid;
 	  grid-template-rows: 1fr;
 	  grid-template-columns: repeat(7, 1fr);
-	  grid-gap: 0;
+	  gap: 0.25em;
       }
 
       #tools > button[selected="true"] {
-	  font-style: oblique;
+	  background-color: #aaaaaa;
+	  border-radius-top: 0.25em;
       }
 
       #accum {
