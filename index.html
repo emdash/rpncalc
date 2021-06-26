@@ -39,6 +39,19 @@
 	  padding: 0.5em;
       }
 
+      #tools {
+	  grid-area: tools;
+	  display: grid;
+	  grid-template-rows: 1fr;
+	  grid-template-columns: repeat(7, 1fr);
+	  gap: 0.25em;
+      }
+
+      #tools > button[selected="true"] {
+	  background-color: #aaaaaa;
+	  border-radius-top: 0.25em;
+      }
+
       #state[showing="desktop"] {
 	  grid-template-areas:
 	      "tools tools tools"
@@ -55,18 +68,6 @@
 
       #keypad-container {
 	  grid-area: keypad;
-      }
-
-      #state:not([showing="keypad"]) > #keypad-container {
-	  display: none;
-      }
-      
-      #state:not([showing="desktop"]) > #vars-container {
-	  display: none;
-      }
-
-      #state:not([showing="desktop"]) > #tape-container {
-	  display: none;
       }
 
       #tape-container {
@@ -88,19 +89,6 @@
 	  border-top: 1px solid black;
       }
 
-      #tools {
-	  grid-area: tools;
-	  display: grid;
-	  grid-template-rows: 1fr;
-	  grid-template-columns: repeat(7, 1fr);
-	  gap: 0.25em;
-      }
-
-      #tools > button[selected="true"] {
-	  background-color: #aaaaaa;
-	  border-radius-top: 0.25em;
-      }
-
       #accum {
 	  font-size:18pt;
 	  margin: 0;
@@ -115,6 +103,7 @@
 	  margin-left: 0.25em;
       }
 
+      /* Use CSS animations to simulate the <blink> tag for the cursor */
       #cursor {
 	  -webkit-animation: .75s linear infinite condemned_blink_effect; /* for Safari 4.0 - 8.0 */
 	  animation: .75s linear infinite condemned_blink_effect;

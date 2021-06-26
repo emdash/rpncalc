@@ -347,11 +347,18 @@ const calculator = (function () {
 //
 // Arguments are the dom elements to update in `render()`.
 function app(element) {
+    // Renders a labeled container
     const container = (id, name, ...content) => div({id}, h1(name), ...content);
     const item = (...contents) => div({}, ...contents);
+
+    // Append child elements to `element`.
     const append = (...items) => element.appendChild(...items);
     
-    // Render the new state to the dom.
+    // Render the new state into `element`
+    //
+    // `full_state` is provided by `mutable`, and represents the inner
+    // state object, while `state` is the wrapper object returned by
+    // `mutable`.
     function render(full_state) {
 	const calc = full_state.inner;
 	const selected = calc.showing;
@@ -386,19 +393,25 @@ function app(element) {
 	    ...calc.stack.map((val) => div({}, val.toString()))
 	));
 
-	// Render the variable window
-	append(container(
-	    "vars-container", "Vars", div({id: "vars"}),
-	    ...Object.getOwnPropertyNames(calc.defs).map(
-		item => `${item}: ${calc.defs[item]}`
-	    )
-	));
+	// Some components are hidden to make room for an onscreen keypad
+	if (calc.showing === "desktop") {
+	    // Render the variable window
+	    append(container(
+		"vars-container", "Vars", div({id: "vars"}),
+		...Object.getOwnPropertyNames(calc.defs).map(
+		    item => `${item}: ${calc.defs[item]}`
+		)
+	    ));
 
-	// Render the current program tape
-	append(container(
-	    "tape-container", "Tape", div({id: "tape"}),
-	    ...calc.tape.map((val) => div({}, val.toString()))
-	));
+	    // Render the current program tape
+	    append(container(
+		"tape-container", "Tape", div({id: "tape"}),
+		...calc.tape.map((val) => div({}, val.toString()))
+	    ));
+	} else {
+	    // Render the keypad
+	    append(div({id: "keypad-container"}, "tbd"));
+	}
 
 	// Render the accumulator
 	append(container(
@@ -406,9 +419,6 @@ function app(element) {
 	    span({id: "accum"}, trap(() => state.accum().toString(), "")),
 	    span({id: "cursor"}, "_")
 	));
-
-	// Render the keypad
-	append(div({id: "keypad-container"}, "tbd"));
     }
 
     // This is where we introduce mutable state.
