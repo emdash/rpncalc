@@ -27,6 +27,7 @@ function trap(f, err) {
     try {
 	return f();
     } catch (e) {
+	console.log(e);
 	return err;
     }
 }
@@ -72,14 +73,14 @@ function undoable({init, methods, properties}) {
     }
 
     function get(prop) {
-	return (state, ...args) => prop(state, ...args);
+	return (state, ...args) => prop(state.inner, ...args);
     }
 
     function undo(state) {
 	if (state.history.length > 0) {
 	    let last = state.history.length - 1;
 	    let inner = state.history[last];
-	    let history = debug(state.history.slice(0, last));
+	    let history = state.history.slice(0, last);
 	    let undone = [...state.undone, state.inner];
 	    return {inner, history, undone};
 	} else {
@@ -262,7 +263,7 @@ const calculator = (function () {
 	    const value = accumulator.properties.value(state.accum);
 	    const accum = accumulator.methods.clear(state.accum);
 	    const numeric = (typeof(value) === "string") && state.defs[value]
-		? state.defs[value]
+		? calc.defs[value]
 		: value;
 	    const stack = [...state.stack, numeric];
 	    const tape = [...state.tape, value];
@@ -313,7 +314,7 @@ const calculator = (function () {
 	    const stack = auto_enter.stack.slice(0, pivot);
 	    const defs = {...auto_enter.defs, [slot]: value};
 	    const tape = [...auto_enter.tape, "="];
-	    return {...auto_enter, stack, defs};
+	    return {...auto_enter, stack, defs, tape};
 	} else {
 	    return state;
 	}
@@ -364,7 +365,7 @@ function app(element) {
 	    const ret = button(is_selected ? {selected: "true"} : {}, tab);
 
 	    // actually want to invoke method on state here.
-	    ret.addEventListener("click", () => state.show(debug(tab)));
+	    ret.addEventListener("click", () => state.show(tab));
 	    return ret;
 	};
 
@@ -382,27 +383,27 @@ function app(element) {
 	// Render the stack
 	append(container(
 	    "stack-container", "Stack", div({id: "stack"}),
-	    ...calc.stack.map((val) => div({}, val))
+	    ...calc.stack.map((val) => div({}, val.toString()))
 	));
 
 	// Render the variable window
 	append(container(
 	    "vars-container", "Vars", div({id: "vars"}),
 	    ...Object.getOwnPropertyNames(calc.defs).map(
-		item => `${item}: ${state.defs[item]}`
+		item => `${item}: ${calc.defs[item]}`
 	    )
 	));
 
 	// Render the current program tape
 	append(container(
 	    "tape-container", "Tape", div({id: "tape"}),
-	    ...calc.tape.map((val) => div({}, val))
+	    ...calc.tape.map((val) => div({}, val.toString()))
 	));
 
 	// Render the accumulator
 	append(container(
 	    "accum-container", "Accum",
-	    span({id: "accum"}, trap(() => state.accum(state), "")),
+	    span({id: "accum"}, trap(() => state.accum().toString(), "")),
 	    span({id: "cursor"}, "_")
 	));
 
