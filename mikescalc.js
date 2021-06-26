@@ -380,6 +380,12 @@ function app(element) {
 	action: () => state.show(name)
     });
 
+    const list = (attrs, items) => el(
+	"ul",
+	attrs,
+	...items.map((item) => el("li", {}, item.toString()))
+    );
+
     // Append child elements to `element`.
     const append = (...items) => element.appendChild(...items);
     
@@ -417,24 +423,31 @@ function app(element) {
 
 	// Render the stack
 	append(container(
-	    "stack-container", "Stack", div({id: "stack"}),
-	    ...calc.stack.map((val) => div({}, val.toString()))
+	    "stack-container",
+	    "Stack",
+	    list({id: "stack"}, calc.stack)
 	));
 
 	// Some components are hidden to make room for an onscreen keypad
 	if (calc.showing === "desktop") {
+	    const vars = Object.getOwnPropertyNames(calc.defs).map(
+		item => `${item}: ${calc.defs[item]}`
+	    );
+
+	    const tape = calc.tape.map((val) => val.toString());
+
 	    // Render the variable window
 	    append(container(
-		"vars-container", "Vars", div({id: "vars"}),
-		...Object.getOwnPropertyNames(calc.defs).map(
-		    item => `${item}: ${calc.defs[item]}`
-		)
+		"vars-container",
+		"Vars",
+		list({id: "vars"}, vars)
 	    ));
 
 	    // Render the current program tape
 	    append(container(
-		"tape-container", "Tape", div({id: "tape"}),
-		...calc.tape.map((val) => div({}, val.toString()))
+		"tape-container",
+		"Tape",
+		list({id: "tape"}, tape)
 	    ));
 	} else {
 	    const keypad = mux({
