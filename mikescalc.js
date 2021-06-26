@@ -141,8 +141,32 @@ function el(name, attrs, ...children) {
 // standard elements
 const div    = (attrs, ...children) => el("div",    attrs, ...children);
 const span   = (attrs, ...children) => el("span",   attrs, ...children);
-const button = (attrs, ...children) => el("button", attrs, ...children);
 const h1     = (...children)        => el("h1",     {},    ...children);
+const button = (attrs, ...children) => el("button", attrs, ...children);
+
+
+// abstract behaviors
+
+
+// Render a set of items with one selected.
+//
+// Items must be a record of {key, label, action}.
+//
+// The return value is an array of items. The key named by `selected`
+// will be rendered with the `selected="true"` attribute.
+function radio_group(selected, ...items) {
+    const radio_button = ({key, label, action}) => {
+	const attrs = (key === selected) ? {selected: "true"} : {};
+	const ret = button(attrs, label);
+	ret.addEventListener("click", action);
+	return ret;
+    };
+
+    return items.map(radio_button);
+};
+
+
+/* Calculator business logic **********************************************/
 
 
 // A monad representing the calculator's input accumulator.
@@ -349,7 +373,12 @@ const calculator = (function () {
 function app(element) {
     // Renders a labeled container
     const container = (id, name, ...content) => div({id}, h1(name), ...content);
-    const item = (...contents) => div({}, ...contents);
+    // Helper generating radio items.
+    const radio_item = (name) => ({
+	key: name,
+	label: name,
+	action: () => state.show(name)
+    });
 
     // Append child elements to `element`.
     const append = (...items) => element.appendChild(...items);
@@ -361,31 +390,30 @@ function app(element) {
     // `mutable`.
     function render(full_state) {
 	const calc = full_state.inner;
-	const selected = calc.showing;
+	const showing = calc.showing;
 
-	element.setAttribute("showing", selected);
-
+	// Clear the display, we're re-rendering everything.
 	element.innerHTML = "";
 
-	const tab_button = (tab, selected) => {
-	    const is_selected = (tab === selected);
-	    const ret = button(is_selected ? {selected: "true"} : {}, tab);
-
-	    // actually want to invoke method on state here.
-	    ret.addEventListener("click", () => state.show(tab));
-	    return ret;
-	};
+	// Update this attribute, as some CSS rules depend on it.
+	element.setAttribute("showing", showing);
 
 	// Render the "tool strip"
-	append(div({id: "tools"}, ...[
-	    "desktop",
-	    "10-key",
-	    "eng",
-	    "trig",
-	    "vars",
-	    "functions",
-	    "+",
-	].map(label => tab_button(label, selected))));
+	append(
+	    div(
+		{id: "tools"},
+		...radio_group(
+		    showing,
+		    radio_item("desktop"),
+		    radio_item("10-key"),
+		    radio_item("eng"),
+		    radio_item("trig"),
+		    radio_item("vars"),
+		    radio_item("functions")
+		),
+		button({}, "+")
+	    ),
+	);
 
 	// Render the stack
 	append(container(
@@ -409,8 +437,19 @@ function app(element) {
 		...calc.tape.map((val) => div({}, val.toString()))
 	    ));
 	} else {
+	    const keypad = mux({
+		"desktop":   () => "",
+		"10-key":    () => "10-key",
+		"eng":       () => "eng",
+		"trig":      () => "trig",
+		"vars":      () => "vars",
+		"functions": () => "functions"
+	    });
+
 	    // Render the keypad
-	    append(div({id: "keypad-container"}, "tbd"));
+	    append(
+		div({id: "keypad-container"}, keypad(showing))
+	    );
 	}
 
 	// Render the accumulator
