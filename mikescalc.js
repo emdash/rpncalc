@@ -730,8 +730,8 @@ function app(element) {
 	"=   /   *    -    . . . . . . . . . .",
 	"7   8   9    +    q w e r t y u i o p",
 	"4   5   6    +    . a s d f g h j k l",
-	"1   2   3    #    . . z x c v b n m .",
-	"0   0   dec  #    . . . # # # # # . .",
+	"1   2   3    .    . . z x c v b n m .",
+	"0   0   dec  .    . . . . . . . . . .",
     );
 
     const ucase = layout(
@@ -740,12 +740,11 @@ function app(element) {
 	"7   8   9    +    Q W E R T Y U I O P",
 	"4   5   6    +    . A S D F G H J K L",
 	"1   2   3    #    . . Z X C V B N M .",
-	"0   0   dec  #    . . . # # # # # . .",
+	"0   0   dec  #    . . . . . . . . . .",
     );
-
+    
     // Layout consisting of all available functions.
     const fn = layout(
-	"+     -   *     /     .       .",
         "abs   acos   asin  atan   atan2",
         "ceil  clz32  cos   exp    floor",
         "imul  fround log   max    min  ",
