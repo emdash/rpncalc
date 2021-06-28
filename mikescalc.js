@@ -554,12 +554,11 @@ function app(element) {
 	element.setAttribute("showing", showing);
 
 	// Render the button strip which controls which mode we are
-	// in.
 	append(div(
 	    {id: "tools", "class": "grid"},
 
 	    // Label for the button group.
-	    h1({}, "Mode"),
+	    h1({}, "Keypad"),
 
 	    // Radio buttons for the current display mode.
 	    ...radio_group(
@@ -567,8 +566,8 @@ function app(element) {
 
 		// either we are using physical keyboard...
 		{
-		    key: "keyboard",
-		    label: "keyboard",
+		    key: "none",
+		    label: "None",
 		    action: () => actions.show("keyboard")
 		},
 
@@ -725,16 +724,16 @@ function app(element) {
 	"0   0   dec    #      ",
     );
 
-    const lcase = layout(
+    const a = layout(
 	"clr rst undo redo . . . . . . . . . .",
 	"=   /   *    -    . . . . . . . . . .",
 	"7   8   9    +    q w e r t y u i o p",
 	"4   5   6    +    . a s d f g h j k l",
-	"1   2   3    .    . . z x c v b n m .",
-	"0   0   dec  .    . . . . . . . . . .",
+	"1   2   3    #    . . z x c v b n m .",
+	"0   0   dec  #    . . . . . . . . . .",
     );
 
-    const ucase = layout(
+    const A = layout(
 	"clr rst undo redo . . . . . . . . . .",
 	"=   /   *    -    . . . . . . . . . .",
 	"7   8   9    +    Q W E R T Y U I O P",
@@ -755,7 +754,7 @@ function app(element) {
     );
 
     // These are the standard layouts
-    const layouts = {basic, scientific, lcase, ucase, fn};
+    const layouts = {basic, scientific, a, A, fn};
 
     /* Keyboard input *******************************************************/
 

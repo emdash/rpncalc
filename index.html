@@ -9,20 +9,12 @@
       }
 
       button {
-	  display: block;
-	  width: 100%;
-	  height: 100%;
+	  display: inline-block;
 	  border: none;
 	  text-align: center;
 	  font-size: 100%;
 	  font-weight: bold;
 	  background-color: #dddddd;
-      }
-
-      .grid {
-	  display: grid;
-	  grid-template-columns: subgrid;
-	  grid-template-rows: subgrid;
       }
 
       button:hover {
@@ -37,21 +29,13 @@
       /* Establish basic grid */
       #state {
 	  display: grid;
-	  grid-template: 2em repeat(10, 1fr) 2em / 25em repeat(11, 1fr);
+	  grid-template: 2.5em 1fr 1fr 2.5em / 20em 1fr 1fr 1fr;
 	  grid-gap: 0.5em;
 	  grid-template-areas:
-	          "t t t t t t t t t t t t"
-		  "a c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
-		  "s c c c c c c c c c c c"
+	          "a a a a"
+		  "s c c c"
+		  "s c c c"
+		  "t t t t"
 	  ;
 
 	  position: absolute;
@@ -66,13 +50,16 @@
       #content {
 	  grid-area: c;
 	  display: grid;
+	  grid-gap: 0.25em;
       }
 
       /* Tools area */
       #tools {
 	  grid-area: t;
-	  align-items: center;
-	  justify-items: center;
+	  display: flex;
+	  grid-template-rows: 1fr;
+	  grid-template-columns: repeat(12, 1fr);
+	  grid-gap: 0.5em;
       }
 
       #tools > button[selected="true"] {
@@ -83,12 +70,9 @@
       #state[showing="desktop"] {
       }
 
-      #keypad {
-	  display: contents;
-      }
-
       #stack-container {
 	  grid-area: s;
+	  grid-template-rows: repeat(24, 1fr);
       }
 
       #accum-container {
@@ -103,10 +87,10 @@
       }
 
       h1 {
-	  display: inline-block;
+	  display: grid;
+	  align-content: center;
 	  font-family: "arial";
 	  font-size: 18pt;
-	  margin-left: 0.25em;
       }
 
       /* Use CSS animations to simulate the <blink> tag for the cursor */
