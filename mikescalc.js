@@ -553,12 +553,9 @@ function app(element) {
 	// Update this attribute, as some CSS rules depend on it.
 	element.setAttribute("showing", showing);
 
-	// Render the button strip which controls which mode we are
+	// Render the button strip which controls which mode we are in.
 	append(div(
-	    {id: "tools", "class": "grid"},
-
-	    // Label for the button group.
-	    h1({}, "Keypad"),
+	    {id: "mode"},
 
 	    // Radio buttons for the current display mode.
 	    ...radio_group(
@@ -566,8 +563,8 @@ function app(element) {
 
 		// either we are using physical keyboard...
 		{
-		    key: "none",
-		    label: "None",
+		    key: "keyboard",
+		    label: "Keyboard",
 		    action: () => actions.show("keyboard")
 		},
 
@@ -583,6 +580,17 @@ function app(element) {
 	    button({}, "+").handle("click", () => {throw "Not Implemented";})
 	));
 
+	// Render the global actions of clear, reset, undo, redo
+	append(
+	    div(
+		{id: "tools"},
+		button({}, "Clear").handle("click", actions.clear),
+		button({}, "Reset").handle("click", actions.reset),
+		button({}, "Undo").handle("click", actions.undo),
+		button({}, "Redo").handle("click", actions.redo),
+	    )
+	);
+
 	// Render the stack.
 	append(container(
 	    "stack-container",
@@ -590,33 +598,33 @@ function app(element) {
 	    ...calc.stack.map((value) => div({}, value.toString()))
 	));
 
-	// In keyboard mode, there is no onscreen keyboard.
-	//
-	// We use the space to show the tape and variable set.
 	if (calc.showing === "keyboard") {
+	    // In keyboard mode, there is no onscreen keyboard.
+	    //
+	    // We use the space to show the tape.
 	    const vars = objmap(calc.defs).flatten(pair);
 	    const tape = calc.tape.map((val) => val.toString());
-	    append(container("vars-container", "Vars", ...vars));
-	    append(container("tape-container", "Tape", ...tape));
-
-	    // Apply the style
-	    // XXX this is super brittle.
-	    keyboard_style_rule.style.gridTemplateAreas = "s v";
+	    append(
+		div(
+		    {id: "content"},
+		    container("vars-container", "Vars", ...vars),
+		    container("tape-container", "Tape", ...tape)
+		).setStyle("grid-template-areas", "\"vars tape\"")
+	    );
 	} else {
+	    // Otherwise, render the keypad appropriate for the mode
+	    // we've entered.
 	    const layout = layouts[showing];
-	    // Render the current keypad.
-	    append(div(
-		{id: "content"},
-		...layout.keys.map(
-		    ({name, label, func}) => button({id: name}, label)
-			.handle('click', func)
-			.setStyle('grid-area', name)
-		)
-	    ));
-
-	    // Apply the style
-	    // XXX this is super brittle.
-	    keyboard_style_rule.style.gridTemplateAreas = layout.areas;
+	    append(
+		div(
+		    {id: "content"},
+		    ...layout.keys.map(
+			({name, label, func}) => button({id: name}, label)
+			    .handle('click', func)
+			    .setStyle('grid-area', name)
+		    )
+		).setStyle("grid-template-areas", layout.areas)
+	    );
 	}
 
 	// Render the accumulator
@@ -703,7 +711,6 @@ function app(element) {
     /* Standard Keypad layouts ***********************************************/
 
     const basic = layout(
-	"clr rst undo redo",
 	"=   /   *    -   ",
 	"7   8   9    +   ",
 	"4   5   6    +   ",
@@ -712,7 +719,6 @@ function app(element) {
     );
 
     const scientific = layout(
-	"clr rst  undo  redo   ",
 	"sin cos  tan   hypot  ",
 	"log ln   log10 log2   ",
 	"pow exp  sqrt  .      ",
@@ -725,21 +731,19 @@ function app(element) {
     );
 
     const a = layout(
-	"clr rst undo redo . . . . . . . . . .",
-	"=   /   *    -    . . . . . . . . . .",
-	"7   8   9    +    q w e r t y u i o p",
-	"4   5   6    +    . a s d f g h j k l",
-	"1   2   3    #    . . z x c v b n m .",
-	"0   0   dec  #    . . . . . . . . . .",
+	"1 2 3 4 5 6 7 8 9 0",
+	"q w e r t y u i o p",
+	". a s d f g h j k l",
+	". . z x c v b n m .",
+	". . . # # # # # . .",
     );
 
     const A = layout(
-	"clr rst undo redo . . . . . . . . . .",
-	"=   /   *    -    . . . . . . . . . .",
-	"7   8   9    +    Q W E R T Y U I O P",
-	"4   5   6    +    . A S D F G H J K L",
-	"1   2   3    #    . . Z X C V B N M .",
-	"0   0   dec  #    . . . . . . . . . .",
+	"1 2 3 4 5 6 7 8 9 0",
+	"Q W E R T Y U I O P",
+	". A S D F G H J K L",
+	". . Z X C V B N M .",
+	". . . # # # # # . .",
     );
     
     // Layout consisting of all available functions.

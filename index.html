@@ -6,15 +6,16 @@
 	  display: block;
 	  font-family: "mono";
 	  user-select: none;
+	  background-color: #eeeeee;
       }
 
       button {
 	  display: inline-block;
 	  border: none;
 	  text-align: center;
-	  font-size: 100%;
 	  font-weight: bold;
 	  background-color: #dddddd;
+	  font-size: inherit;
       }
 
       button:hover {
@@ -26,17 +27,20 @@
 	  color: white;
       }
 
+      button[selected="true"] {
+	  background: #aaaaaa;
+      }
+
       /* Establish basic grid */
       #state {
 	  display: grid;
-	  grid-template: 2.5em 1fr 1fr 2.5em / 20em 1fr 1fr 1fr;
+	  grid-template: 3em 1fr 1fr 2.5em / 20em 1fr 1fr 1fr;
 	  grid-gap: 0.5em;
 	  grid-template-areas:
-	          "a a a a"
+	          "a a t t"
 		  "s c c c"
 		  "s c c c"
-		  "t t t t"
-	  ;
+		  "m m m m";
 
 	  position: absolute;
 	  bottom: 0;
@@ -50,45 +54,71 @@
       #content {
 	  grid-area: c;
 	  display: grid;
-	  grid-gap: 0.25em;
+	  grid-gap: 0.5em;
       }
 
-      /* Tools area */
-      #tools {
-	  grid-area: t;
+      /* Mode */
+      #mode {
+	  grid-area: m;
 	  display: flex;
 	  grid-template-rows: 1fr;
 	  grid-template-columns: repeat(12, 1fr);
 	  grid-gap: 0.5em;
+	  background-color: #dddddd;
       }
+
+      #tools {
+	  grid-area: t;
+	  display: flex;
+	  justify-content: flex-end;
+	  grid-template-rows: 1fr;
+	  grid-template-columns: repeat(12, 1fr);
+	  grid-gap: 0.5em;
+      }
+      
 
       #tools > button[selected="true"] {
 	  background-color: #aaaaaa;
 	  border-radius-top: 0.25em;
       }
 
-      #state[showing="desktop"] {
-      }
-
       #stack-container {
 	  grid-area: s;
 	  grid-template-rows: repeat(24, 1fr);
+	  background-color: #dddddd;
+	  font-size: 18pt;
+      }
+
+      #stack-container:nth-child(even) {
+	  background-color: #cccccc;
       }
 
       #accum-container {
 	  grid-area: a;
+	  display: flex;
+      }
+
+      #vars-container {
+	  grid-area: vars;
+	  background-color: #dddddd;
+	  padding-left: 0.5em;
+      }
+
+      #tape-container {
+	  grid-area: tape;
+	  background-color: #dddddd;
       }
 
       #accum {
-	  font-size:18pt;
+	  font-size: 18pt;
 	  margin: 0;
 	  padding: 0;
 	  margin-left: 1em;
+	  margin: 0.25em;
       }
 
       h1 {
 	  display: grid;
-	  align-content: center;
 	  font-family: "arial";
 	  font-size: 18pt;
       }
