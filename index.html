@@ -9,11 +9,20 @@
       }
 
       button {
+	  display: block;
+	  width: 100%;
+	  height: 100%;
 	  border: none;
 	  text-align: center;
 	  font-size: 100%;
 	  font-weight: bold;
 	  background-color: #dddddd;
+      }
+
+      .grid {
+	  display: grid;
+	  grid-template-columns: subgrid;
+	  grid-template-rows: subgrid;
       }
 
       button:hover {
@@ -25,11 +34,25 @@
 	  color: white;
       }
 
+      /* Establish basic grid */
       #state {
 	  display: grid;
-	  grid-template-rows: minmax(2em, 1fr) 18fr 1fr;
-	  grid-template-columns: 1fr 1fr 1fr;
+	  grid-template: 2em repeat(10, 1fr) 2em / 25em repeat(11, 1fr);
 	  grid-gap: 0.5em;
+	  grid-template-areas:
+	          "t t t t t t t t t t t t"
+		  "a c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+		  "s c c c c c c c c c c c"
+	  ;
 
 	  position: absolute;
 	  bottom: 0;
@@ -39,12 +62,17 @@
 	  padding: 0.5em;
       }
 
-      #tools {
-	  grid-area: tools;
+      /* The content area subgrid */
+      #content {
+	  grid-area: c;
 	  display: grid;
-	  grid-template-rows: 1fr;
-	  grid-template-columns: repeat(7, 1fr);
-	  gap: 0.25em;
+      }
+
+      /* Tools area */
+      #tools {
+	  grid-area: t;
+	  align-items: center;
+	  justify-items: center;
       }
 
       #tools > button[selected="true"] {
@@ -53,47 +81,25 @@
       }
 
       #state[showing="desktop"] {
-	  grid-template-areas:
-	      "tools tools tools"
-	      "stack vars tape"
-	      "accum accum accum";
       }
 
-      #state:not([showing="desktop"]) {
-	  grid-template-areas:
-	      "tools tools  tools"
-	      "stack keypad keypad"
-	      "accum accum accum";
-      }
-
-      #keypad-container {
-	  grid-area: keypad;
-      }
-
-      #tape-container {
-	  grid-area: tape;
-	  border-left: 1px solid black;
+      #keypad {
+	  display: contents;
       }
 
       #stack-container {
-	  grid-area: stack;
-      }
-
-      #vars-container {
-	  grid-area: vars;
-	  border-left: 1px solid black;
+	  grid-area: s;
       }
 
       #accum-container {
-	  grid-area: accum;
-	  border-top: 1px solid black;
+	  grid-area: a;
       }
 
       #accum {
 	  font-size:18pt;
 	  margin: 0;
 	  padding: 0;
-	  margin-left: .5em;
+	  margin-left: 1em;
       }
 
       h1 {

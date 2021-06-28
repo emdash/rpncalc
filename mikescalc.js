@@ -1,10 +1,14 @@
 "use strict";
 
 
-// Experimental functional approach to writing this.
+// I used the latest ES6 features to write this in a "functional"
+// style.
+//
+// You could think of this as an exploration of functional programming
+// using javascript.
 
 
-/*** Functional helpers ************************************************/
+/*** Functional Programming Helpers ************************************/
 
 
 // Helper for debugging in expressions.
@@ -48,85 +52,136 @@ function objmap(func, obj) {
 }
 
 
-// Dynamic dispatch for javascript
-const mux = (map) => (key, ...args) => map[key](...args);
+// Flatten an object into a list of [name, value] pairs.
+const flatten = (obj) => Object
+      .getOwnPropertyNames(obj)
+      .map((name) => [name, obj[name]]);
 
 
-// helpers for composing functions on composed states
-const hoist_method = (slot) => (method) => (state, ...args) => ({
-    ...state,
-    [slot]: method(state[slot], ...args)
-});
-const hoist_property = (slot) => (prop) => (state, ...args) => prop(state[slot], ...args);
-const hoist_methods  = (slot, module) => objmap(hoist_method(slot), module.methods);
-const hoist_props    = (slot, module) => objmap(hoist_property(slot), module.properties);
+// Monkey patch some useful methods into the standard library
+// Old-style function syntax used for correct handling of `this`.
+Object.prototype.map     = function (func) {return objmap(func, this);};
+Object.prototype.flatten = function ()     {return flatten(this);};
 
 
-// Undoable monad transformer
+// Hoist methods from `module` into `slot` in the outer object.
+const hoist_methods  = (slot, module) => module.methods.map(
+    (method) => (state, ...args) => ({
+	...state,
+	[slot]: method(state[slot], ...args)
+    })
+);
+
+
+// Hoist properties from `module` into `slot`, a field in the outer object.
+const hoist_props = (slot, module) => module.properties.map(
+    (prop) => (state, ...args) => prop(state[slot], ...args)
+);
+
+
+// Undoable "mixin". Make the underlying type "undoable" by wrapping
+// its state and methods.
 function undoable({init, methods, properties}) {
-    function update(method) {
-	return (state, ...args) => ({
-	    inner: method(state.inner, ...args),
-	    history: [...state.history, state.inner],
-	    undone: []
-	});
-    }
+    // Each method in `methods` will be wrapped with this function.
+    //
+    // This handles the argument wrangling, and will fold the previous
+    // state into the history, and clear the redo stack.
+    const update = (method) => (state, ...args) => ({
+	inner: method(state.inner, ...args),
+	history: [...state.history, state.inner],
+	undone: []
+    });
 
-    function get(prop) {
-	return (state, ...args) => prop(state.inner, ...args);
-    }
+    // Each property in `property` will be wrapped with this function.
+    //
+    // It simply handles the argument wrangling.
+    const get = (prop) => (state, ...args) => prop(state.inner, ...args);
 
+    // Restore state to the top of the undo stack.
+    //
+    // Uses traditional function syntax since it throws.
     function undo(state) {
 	if (state.history.length > 0) {
-	    let last = state.history.length - 1;
-	    let inner = state.history[last];
-	    let history = state.history.slice(0, last);
-	    let undone = [...state.undone, state.inner];
+	    const last    = state.history.length - 1;
+	    const inner   = state.history[last];
+	    const history = state.history.slice(0, last);
+	    const undone  = [...state.undone, state.inner];
 	    return {inner, history, undone};
 	} else {
 	    throw "Nothing to undo!";
 	}
     }
 
+    // Restore state to top of the redo stack.
+    //
+    // Uses traditional function syntax since it throws.
     function redo(state) {
 	if (state.undone.length > 0) {
-	    let last = state.undone.length - 1;
-	    let inner = state.undone[last];
-	    let history = [...state.history, state.inner];
-	    let undone = state.undone.slice(0, last);
+	    const last    = state.undone.length - 1;
+	    const inner   = state.undone[last];
+	    const history = [...state.history, state.inner];
+	    const undone  = state.undone.slice(0, last);
 	    return {inner, history, undone};
 	} else {
 	    throw "Nothing to redo!";
 	}
     }
-    
+
+    // We return a wrapper around the type's initial state, with blank
+    // undo and redo stacks.
+    //
+    // We wrap each method in `update`, as described above, and inject
+    // the `undo`, `redo` methods.
+    //
+    // We wrap each property in `get` as described above.
     return {
-	init: {inner: init, history: [], undone: []},
-	methods: {...objmap(update, methods), undo, redo},
-	properties: objmap(get, properties)
+	init:       {inner: init, history: [], undone: []},
+	methods:    {...methods.map(update), undo, redo},
+	properties: properties.map(get)
     };
 }
 
 
-// Mutable monad consumer
-function mutable({init, methods, properties}, update) {
+// The IO monad, for JS in the browser.
+//
+// Given a type description for an immutable type, returns a wrapper
+// type which has a corresponding mutator for every method in the
+// underlying type.
+//
+// When a mutator is called, the new state is passed to the `output`
+// callback.
+function io({init, methods, properties}, output) {
     let state = init;
-    const method   = (m) => (...args) => {state = m(state, ...args); update(state);};
+
+    const method = (m) => (...args) => {
+	state = m(state, ...args); output(state, actions);
+    };
+
     const property = (p) => (...args) => p(state, ...args);
 
-    return {...objmap(method, methods), ...objmap(property, properties)};
+    // Since this is the end of the chain, we 
+    const actions = {
+	...methods.map(method),
+	...properties.map(property)
+    };
+
+    return actions;
 }
 
 
-// rendering helpers *****************************************************/
+/*** rendering helpers *****************************************************/
 
 
-// generic element constructor
+// functional wrapper around DOM API.
+//
+// No virtual dom here, everything is direct.
 function el(name, attrs, ...children) {
     const ret = document.createElement(name);
+
     for (let key in attrs) {
 	ret.setAttribute(key, attrs[key]);
     }
+
     for (let child of children) {
 	if (typeof child === "string") {
 	    ret.appendChild(document.createTextNode(child));
@@ -134,45 +189,168 @@ function el(name, attrs, ...children) {
 	    ret.appendChild(child);
 	}
     }
+
     return ret;
 }
 
 
+// Drop first param to make it easier to use `el` with `map`.
+const wrap   = (f) => (...c) => f({}, ...c);
+
+
 // standard elements
-const div    = (attrs, ...children) => el("div",    attrs, ...children);
-const span   = (attrs, ...children) => el("span",   attrs, ...children);
-const h1     = (...children)        => el("h1",     {},    ...children);
-const button = (attrs, ...children) => el("button", attrs, ...children);
+const div    = (a, ...c)  => el("div",    a, ...c);
+const span   = (a, ...c)  => el("span",   a, ...c);
+const h1     = (a, ...c)  => el("h1",     a, ...c);
+const button = (a, ...c)  => el("button", a, ...c);
+const li     = (a, ...c)  => el("li",     a, ...c);
+const ul     = (a, ...c)  => el("ul",     a, ...c);
+const tr     = (a, ...c)  => el("tr",     a, ...c);
+const td     = (a, ...c)  => el("td",     a, ...c);
+const table  = (a, ...c)  => el("table",  a, ...c);
 
 
-// abstract behaviors
+/* abstract behaviors *******************************************************/
 
 
-// Render a set of items with one selected.
+// Monkey patch Element so that a few useful things can be chained.
+HTMLElement.prototype.handle = function (event, handler) {
+    this.addEventListener(event, handler);
+    return this;
+};
+
+HTMLElement.prototype.setStyle = function (name, value) {
+    this.style[name] = value;
+    return this;
+}
+
+
+// A group of items representing a mutually-exclusive choice.
 //
 // Items must be a record of {key, label, action}.
 //
-// The return value is an array of items. The key named by `selected`
-// will be rendered with the `selected="true"` attribute.
-function radio_group(selected, ...items) {
-    const radio_button = ({key, label, action}) => {
-	const attrs = (key === selected) ? {selected: "true"} : {};
-	const ret = button(attrs, label);
-	ret.addEventListener("click", action);
-	return ret;
-    };
-
-    return items.map(radio_button);
-};
-
-
-/* Calculator business logic **********************************************/
+// The item who's key matches `selected` will be rendered with the
+// `selected: "true"` attribute.
+const radio_group = (selected, ...items) => items.map(
+    ({key, label, action}) => button(
+	(key === selected) ? {selected: "true"} : {},
+	label
+    ).handle(
+	'click',
+	action
+    )
+);
 
 
-// A monad representing the calculator's input accumulator.
+/*** Calculator business logic ********************************************/
+
+
+// Implement a built-in calculator function.
 //
-// It is mostly just a wrapper around the usual methods for parsing
-// base 10 values, but there are some wrinkles since it is modal.
+// Wraps `func()` such that it is called on a stack of arguments,
+// using the specified number of elements.
+//
+// If the stack does not contain `arity` elements, then "stack
+// underflow" is thrown.
+function builtin(arity, func) {
+    if (arity === null) {
+	// Null arity indicates the function is variadic and consumes the
+	// whole stack, so return a stack containing only the result.
+	return (...args) => [func(...args)];
+    } else {
+	// Otherwise we need to consume just the arguments we need.
+	return (stack) => {
+	    // the index on the stack where the operands begin.
+	    if (stack.length >= arity) {
+		const pivot = stack.length - arity;
+		const args = stack.slice(pivot);
+		return [...stack.slice(0, pivot), func(...args)];
+	    } else {
+		throw "stack underflow";
+	    }
+	};
+    }
+}
+
+
+// Special case of above for constants.
+const constant = (c) => builtin(0, () => c);
+
+
+// Define the builtin functions of the calculator.
+//
+// Match each function to a symbolic name.
+//
+// For now we just expose all the properties of the Math module, which
+// means all operations are on 64-bit floats.
+//
+// The good news is that if we want to support exact decimal
+// calculations, complex numbers, quaternions, vectors, or arbitrary
+// precision, we just need to supply an alternative implementation for
+// the functions in this table.
+//
+// TBD: Associate a unicode symbol or image for each function, which
+// will be used as the button icon for onscreen use.
+const builtins = {
+    add:     builtin(2, (x, y) => x + y),
+    sub:     builtin(2, (x, y) => x - y),
+    mul:     builtin(2, (x, y) => x * y),
+    div:     builtin(2, (x, y) => x / y),
+    abs:     builtin(1, Math.abs),
+    acos:    builtin(1, Math.acos),
+    asin:    builtin(1, Math.asin),
+    atan:    builtin(1, Math.atan),
+    atan2:   builtin(1, Math.atan2),
+    ceil:    builtin(1, Math.ceil),
+    clz32:   builtin(1, Math.clz32),
+    cos:     builtin(1, Math.cos),
+    exp:     builtin(1, Math.exp),
+    floor:   builtin(1, Math.floor),
+    imul:    builtin(2, Math.imul),
+    fround:  builtin(1, Math.fround),
+    ln:      builtin(1, Math.log),
+    log:     builtin(2, (x, y) => Math.log(x) / Math.log(y)),
+    max:     builtin(null, Math.max),
+    min:     builtin(null, Math.min),
+    pow:     builtin(2, Math.pow),
+    random:  builtin(0, Math.random),
+    round:   builtin(1, Math.round),
+    sin:     builtin(1, Math.sin),
+    sqrt:    builtin(1, Math.sqrt),
+    tan:     builtin(1, Math.tan),
+    log10:   builtin(1, Math.log10),
+    log2:    builtin(1, Math.log2),
+    log1p:   builtin(1, Math.log1p),
+    expm1:   builtin(1, Math.expm1),
+    cosh:    builtin(1, Math.cosh),
+    sinh:    builtin(1, Math.sinh),
+    tanh:    builtin(1, Math.tanh),
+    acosh:   builtin(1, Math.acosh),
+    asinh:   builtin(1, Math.asinh),
+    atanh:   builtin(1, Math.atanh),
+    hypot:   builtin(null, Math.hypot),
+    trunc:   builtin(2, Math.trunc),
+    sign:    builtin(2, Math.sign),
+    cbrt:    builtin(2, Math.cbrt),
+    E:       constant(Math.E),
+    LOG2E:   constant(Math.LOG2E),
+    LOG10E:  constant(Math.LOG10E),
+    LN2:     constant(Math.LN2),
+    LN10:    constant(Math.LN10),
+    PI:      constant(Math.PI),
+    SQRT2:   constant(Math.SQRT2),
+    SQRT1_2: constant(Math.SQRT1_2)
+}
+
+
+/* Calculator parts *******************************************************/
+
+
+// A type representing the calculator's input accumulator.
+//
+// It is just the usual methods for parsing base 10 values, but
+// expressed in a stateless fashion, since that's the paradigm we're
+// working in.
 //
 // The accumulator starts out empty.
 // If the first character is a digit, accumulator is in decimal mode.
@@ -181,6 +359,8 @@ function radio_group(selected, ...items) {
 //
 // Subsequent chars are then accepted or rejected based on the mode,
 // until it is cleared, via clear().
+//
+// TBD: function mode
 const accumulator = (function () {
     const empty = {type: "empty"};
 
@@ -222,63 +402,31 @@ const accumulator = (function () {
 	case "word":  return state.value;
     }; }
 
+    // Return whether or not the accumulator is in the empty state.
     function isEmpty(state) {
 	return state.type === "empty";
     }
-    
+
     return {
-	init: empty,
-	methods: {clear, digit, decimal, letter},
+	init:       empty,
+	methods:    {clear, digit, decimal, letter},
 	properties: {value, isEmpty}
     };
 })();
 
 
-// Calculator as a whole
+// Represents the entire calculator state, including:
+// - stack
+// - input stream
+// - current definitions
 const calculator = (function () {
-    // This function has survived several refactorings
-    //
-    // It returns a function from stack -> stack
-    function builtin(arity, func) {
-	return (stack) => {
-	    // the index on the stack where the operands begin
-	    if (stack.length >= arity) {
-		const pivot = stack.length - arity;
-		const args = stack.slice(pivot);
-		const residual = stack.slice(0, pivot);
-
-		// one result per function assumed.
-		residual.push(func(args));
-
-		console.log(pivot, args, residual);
-		
-		return residual;
-	    } else {
-		throw "stack underflow";
-	    }
-	}
-    }
-
-    // This table of builtins has survived several refactorings.
-    const builtins = {
-	"+":    builtin(2, (args) => args[0] + args[1]),
-	"-":    builtin(2, (args) => args[0] - args[1]),
-	"*":    builtin(2, (args) => args[0] * args[1]),
-	"/":    builtin(2, (args) => args[0] / args[1]),
-	"log":  builtin(2, (args) => Math.log(args[0], args[1])),
-	"pow":  builtin(2, (args) => Math.pow(args[0], args[1])),
-	"sin":  builtin(1, (args) => Math.sin(args[0])),
-	"cos":  builtin(1, (args) => Math.cos(args[0])),
-	"sqrt": builtin(1, (args) => Math.sqrt(args[0]))
-    };
-
     const init = {
 	ops: builtins,
 	stack: [],
 	tape: [],
 	defs: {},
 	accum: accumulator.init,
-	showing: "desktop"
+	showing: "keyboard"
     };
 
     // transfer accumulator to stack
@@ -344,7 +492,7 @@ const calculator = (function () {
 	}
     }
 
-    //
+    // A bit of a wart: UI state is controlled here.
     function show(state, showing) {
 	return {...state, showing};
     }
@@ -367,35 +515,36 @@ const calculator = (function () {
 })();
 
 
-// Top level calculator object
-//
-// Arguments are the dom elements to update in `render()`.
-function app(element) {
-    // Renders a labeled container
-    const container = (id, name, ...content) => div({id}, h1(name), ...content);
-    // Helper generating radio items.
-    const radio_item = (name) => ({
-	key: name,
-	label: name,
-	action: () => state.show(name)
-    });
+/*** Application entry point *************************************************/
 
-    const list = (attrs, items) => el(
-	"ul",
-	attrs,
-	...items.map((item) => el("li", {}, item.toString()))
+
+// Browser / HTML-specific code to render the calculator state and
+// respond to input.
+function app(element) {
+    // Find the right style rule;
+    let keyboard_style_rule = (function () {
+	for (let rule of document.styleSheets[0].rules) {
+	    if (rule.selectorText === "#content") {
+		return rule;
+	    }
+	}
+    })();
+    
+    // Renders a labeled container
+    const container = (id, name, ...content) => div(
+	{id, "class": "grid"}, h1({}, name), ...content
     );
+
+    // Render a key / value pair to a string
+    const pair = (key, value) => item => `${key}: ${value}`;
 
     // Append child elements to `element`.
     const append = (...items) => element.appendChild(...items);
     
-    // Render the new state into `element`
-    //
-    // `full_state` is provided by `mutable`, and represents the inner
-    // state object, while `state` is the wrapper object returned by
-    // `mutable`.
-    function render(full_state) {
-	const calc = full_state.inner;
+    function render(state, actions) {
+	// Most (or all?) of this code doesn't care about the undo /
+	// redo state, so we create a shorthand here.
+	const calc = state.inner;
 	const showing = calc.showing;
 
 	// Clear the display, we're re-rendering everything.
@@ -404,168 +553,262 @@ function app(element) {
 	// Update this attribute, as some CSS rules depend on it.
 	element.setAttribute("showing", showing);
 
-	// Render the "tool strip"
-	append(
-	    div(
-		{id: "tools"},
-		...radio_group(
-		    showing,
-		    radio_item("desktop"),
-		    radio_item("10-key"),
-		    radio_item("eng"),
-		    radio_item("trig"),
-		    radio_item("vars"),
-		    radio_item("functions")
-		),
-		button({}, "+")
-	    ),
-	);
+	// Render the button strip which controls which mode we are
+	// in.
+	append(div(
+	    {id: "tools", "class": "grid"},
 
-	// Render the stack
+	    // Label for the button group.
+	    h1({}, "Mode"),
+
+	    // Radio buttons for the current display mode.
+	    ...radio_group(
+		showing,
+
+		// either we are using physical keyboard...
+		{
+		    key: "keyboard",
+		    label: "keyboard",
+		    action: () => actions.show("keyboard")
+		},
+
+		// ...or one of the onscreen layouts.
+		...layouts
+		    .flatten()
+		    .map(([key, _]) => ({
+			key,
+			label: key,
+			action: () => actions.show(key)
+		    }))
+	    ),
+	    button({}, "+").handle("click", () => {throw "Not Implemented";})
+	));
+
+	// Render the stack.
 	append(container(
 	    "stack-container",
 	    "Stack",
-	    list({id: "stack"}, calc.stack)
+	    ...calc.stack.map((value) => div({}, value.toString()))
 	));
 
-	// Some components are hidden to make room for an onscreen keypad
-	if (calc.showing === "desktop") {
-	    const vars = Object.getOwnPropertyNames(calc.defs).map(
-		item => `${item}: ${calc.defs[item]}`
-	    );
-
+	// In keyboard mode, there is no onscreen keyboard.
+	//
+	// We use the space to show the tape and variable set.
+	if (calc.showing === "keyboard") {
+	    const vars = objmap(calc.defs).flatten(pair);
 	    const tape = calc.tape.map((val) => val.toString());
+	    append(container("vars-container", "Vars", ...vars));
+	    append(container("tape-container", "Tape", ...tape));
 
-	    // Render the variable window
-	    append(container(
-		"vars-container",
-		"Vars",
-		list({id: "vars"}, vars)
-	    ));
-
-	    // Render the current program tape
-	    append(container(
-		"tape-container",
-		"Tape",
-		list({id: "tape"}, tape)
-	    ));
+	    // Apply the style
+	    // XXX this is super brittle.
+	    keyboard_style_rule.style.gridTemplateAreas = "s v";
 	} else {
-	    const keypad = mux({
-		"desktop":   () => "",
-		"10-key":    () => "10-key",
-		"eng":       () => "eng",
-		"trig":      () => "trig",
-		"vars":      () => "vars",
-		"functions": () => "functions"
-	    });
+	    const layout = layouts[showing];
+	    // Render the current keypad.
+	    append(div(
+		{id: "content"},
+		...layout.keys.map(
+		    ({name, label, func}) => button({id: name}, label)
+			.handle('click', func)
+			.setStyle('grid-area', name)
+		)
+	    ));
 
-	    // Render the keypad
-	    append(
-		div({id: "keypad-container"}, keypad(showing))
-	    );
+	    // Apply the style
+	    // XXX this is super brittle.
+	    keyboard_style_rule.style.gridTemplateAreas = layout.areas;
 	}
 
 	// Render the accumulator
 	append(container(
-	    "accum-container", "Accum",
-	    span({id: "accum"}, trap(() => state.accum().toString(), "")),
-	    span({id: "cursor"}, "_")
+	    "accum-container", ">",
+	    span(
+		{id: "accum"},
+		trap(() => actions.accum().toString(), ""),
+		span({id: "cursor"}, "_")
+	    )
 	));
     }
 
-    // This is where we introduce mutable state.
-    //
-    // See the documentation for monad, but basically we first wrap
-    // the `calculator()` type with the `undoable()` mixin. Then we
-    // pass that off to `monad()` as the initial state. We pass `render()`
-    // As the output function of the monad.
-    //
-    // Then we call mapobj on the resulting monad to generate the mutation
-    // functions.
-    //
-    // I.e. here is where we transform the pure calculator state
-    // object into a stateful object.
-    //
-    // The monad generates the methods for us using the 
-    const state = mutable(calculator, render);
-    const key = (x, y, label, action) => ({x, y, label, action});
-    const layout = {
-	rows: 4,
-	cols: 4,
-	keys: [
-	    key(0, 0, "7",     () => state.digit(7)),
-	    key(0, 1, "8",     () => state.digit(8)),
-	    key(0, 2, "9",     () => state.digit(9)),
+    // This is where we transform the pure calculator type into a
+    // stateful wrapper.
+    const state = io(calculator, render);
 
-	    key(1, 0, "4",     () => state.digit(4)),
-	    key(1, 1, "5",     () => state.digit(5)),
-	    key(1, 2, "6",     () => state.digit(6)),
+    // Split a string on whitespace, dropping the empty strings.
+    const split = (str) => str.split(' ').filter(x => !!x);
 
-	    key(2, 0, "1",     () => state.digit(1)),
-	    key(2, 1, "2",     () => state.digit(2)),
-	    key(2, 2, "3",     () => state.digit(3)),
+    /* Keypad layout *****************************************************/
 
-	    key(3, 0, "0",     () => state.digit(0)),
-	    key(3, 1, ".",     () => state.decimal()),
-	    key(3, 2, "enter", () => state.enter()),
+    // Helper functions
+    const digits   = new Set("0123456789");
+    const digit    = (d) => ({name: `d${d}`, label: d, func: () => state.digit(parseInt(d))});
+    const symbol   = (s) => ({name: s, label: s, func: () => state.letter(s)});
+    const operator = (f) => ({name: f, label: f, func: () => state.operator(f)});
 
-	    key(0, 3, "+",     () => state.operator('+')),
-	    key(1, 3, "-",     () => state.operator('-')),
-	    key(2, 3, "*",     () => state.operator('*')),
-	    key(3, 3, "/",     () => state.operator('/'))
-	]
+    debug(digits);
+
+    // Short-cut characters for common symbols and other funtions.
+    const specials = {
+	clr:  {name: "clr",   label: "clr",   func: state.clear},
+	rst:  {name: "rst",   label: "rst",   func: state.reset},
+	dec:  {name: "dec",   label: ".",     func: state.decimal},
+	undo: {name: "undo",  label: "undo",  func: state.undo},
+	redo: {name: "redo",  label: "redo",  func: state.undo},
+	"+":  {name: "add",   label: "add",   func: () => state.operator("add")},
+	"-":  {name: "sub",   label: "sub",   func: () => state.operator("add")},
+	"*":  {name: "mul",   label: "mul",   func: () => state.operator("add")},
+	"/":  {name: "div",   label: "div",   func: () => state.operator("add")},
+	"=":  {name: "store", label: "=",     func: state.store},
+	"#":  {name: "enter", label: "enter", func: state.enter},
     };
 
-    state.reset();
-	
-    // This has survived several refactorings.
-    // This keymap is hard-coded for now. Eventually we will make it
-    // user-modifiable.
-    function keymap(event) {
-	switch(event.key) {
-	case '0': return state.digit(0);
-	case '1': return state.digit(1);
-	case '2': return state.digit(2);
-	case '3': return state.digit(3);
-	case '4': return state.digit(4);
-	case '5': return state.digit(5);
-	case '6': return state.digit(6);
-	case '7': return state.digit(7);
-	case '8': return state.digit(8);
-	case '9': return state.digit(9);
-	case '.': return state.decimal();
-	case 'x': return state.letter('x');
-	case 'y': return state.letter('y');
-	case '+': return state.operator('+');
-	case '-': return state.operator('-');
-	case '*': return state.operator('*');
-	case '/': return state.operator('/');
-	case 'l': return state.operator('log');
-	case '^': return state.operator('pow');
-	case 's': return state.operator('sin');
-	case 'c': return state.operator('cos');
-	case 'r': return state.operator('sqrt');
-	case '=': return state.store();
-	case 'Enter':     return state.enter();
-	case 'Backspace': return state.undo();
-	case 'Tab':       return state.redo();
-	case 'Delete':    return state.clear();
-	default:
-	    console.log('unknown key', event.key);
+    // Create the 2D key layout for the given layout spec.
+    const layout = (...rows) => {
+	// Create an entry for each symbol in the row.
+	function entry (key) {
+	    if (digits.has(key)) {
+		return digit(key);
+	    } else if (key in builtins) {
+		return operator(key);
+	    } else if (key in specials) {
+		return specials[key];
+	    } else if (key == ".") {
+		return {name: "."};
+	    } else {
+		return symbol(key);
+	    }
 	};
-    }
 
-    function keydown (event) {
-	console.log(event);
-	event.preventDefault();
-	keymap(event);
+	const entries = rows.map(split).map(row => row.map(entry));
+
+	// Recombine the layout into a string compatible with CSS.
+	//
+	// We use the `grid-template-areas` property for formatting,
+	// but the DSL makes use of funky characters which aren't
+	// legal in the CSS to keep the layouts concise.
+	//
+	// So we need to replace the funky characters with their more
+	// wordy equivalents.
+	const areas = entries
+	      .map(row => row.map(({name}) => name).join(" "))
+	      .map(JSON.stringify)
+	      .join(" ");
+
+	// Return a flattened, deduplicated list of entries.
+	const keys = [...new Set(entries.flat().filter(x => x.name !== "."))];
+
+	return {keys, areas};
     };
 
-    return {...state, keydown};
+    /* Standard Keypad layouts ***********************************************/
+
+    const basic = layout(
+	"clr rst undo redo",
+	"=   /   *    -   ",
+	"7   8   9    +   ",
+	"4   5   6    +   ",
+	"1   2   3    #   ",
+	"0   0   dec  #   ",
+    );
+
+    const scientific = layout(
+	"clr rst  undo  redo   ",
+	"sin cos  tan   hypot  ",
+	"log ln   log10 log2   ",
+	"pow exp  sqrt  .      ",
+	"PI  E    SQRT2 SQRT1_2",
+	"=   /   *      -      ",
+	"7   8   9      +      ",
+	"4   5   6      +      ",
+	"1   2   3      #      ",
+	"0   0   dec    #      ",
+    );
+
+    const lcase = layout(
+	"clr rst undo redo . . . . . . . . . .",
+	"=   /   *    -    . . . . . . . . . .",
+	"7   8   9    +    q w e r t y u i o p",
+	"4   5   6    +    . a s d f g h j k l",
+	"1   2   3    #    . . z x c v b n m .",
+	"0   0   dec  #    . . . # # # # # . .",
+    );
+
+    const ucase = layout(
+	"clr rst undo redo . . . . . . . . . .",
+	"=   /   *    -    . . . . . . . . . .",
+	"7   8   9    +    Q W E R T Y U I O P",
+	"4   5   6    +    . A S D F G H J K L",
+	"1   2   3    #    . . Z X C V N N M .",
+	"0   0   dec  #    . . . # # # # # . .",
+    );
+
+    // Layout consisting of all available functions.
+    const fn = layout(
+	"+     -   *     /     .       .",
+        "abs   acos   asin  atan   atan2",
+        "ceil  clz32  cos   exp    floor",
+        "imul  fround log   max    min  ",
+	"pow   random round sin    sqrt ",
+	"tan   log10  log2  log1p  expm1",
+	"cosh  sinh   tanh  acosh  asinh",
+	"atanh hypot  sign  cbrt   .    "
+    );
+
+    // These are the standard layouts
+    const layouts = {basic, scientific, lcase, ucase, fn};
+
+    /* Keyboard input *******************************************************/
+
+    // Standard keymap for keyboard operation.
+    //
+    // Maps the key directly as it appears in the `keydown` event.
+    const keymap = {
+	'0':         () => state.digit(0),
+	'1':         () => state.digit(1),
+	'2':         () => state.digit(2),
+	'3':         () => state.digit(3),
+	'4':         () => state.digit(4),
+	'5':         () => state.digit(5),
+	'6':         () => state.digit(6),
+	'7':         () => state.digit(7),
+	'8':         () => state.digit(8),
+	'9':         () => state.digit(9),
+	'.':         () => state.decimal(),
+	'x':         () => state.letter('x'),
+	'y':         () => state.letter('y'),
+	'+':         () => state.operator('add'),
+	'-':         () => state.operator('sub'),
+	'*':         () => state.operator('mul'),
+	'/':         () => state.operator('div'),
+	'l':         () => state.operator('log'),
+	'^':         () => state.operator('pow'),
+	's':         () => state.operator('sin'),
+	'c':         () => state.operator('cos'),
+	'r':         () => state.operator('sqrt'),
+	'=':         state.store,
+	'Enter':     state.enter,
+	'Backspace': state.undo,
+	'Tab':       state.redo,
+	'Delete':    state.clear,
+    };
+
+    // Hook up keyboard handlers through the keymap.
+    window.addEventListener('keydown', function (event) {
+	const key = event.key;
+	console.log('keydown', event);
+	event.preventDefault();
+	if (key in keymap) {
+	    keymap[key]();
+	}
+    });
+
+    // Trigger the initial render.
+    state.reset();
+
+    // Return value is the debug interface.
+    return {...state, layouts};
 }
 
 // Create a calculator component using the following dom elements
 const calc = app(document.getElementById("state"));
-
-// Hook up keyboard handlers through the keymap.
-window.addEventListener('keydown', calc.keydown);
