@@ -375,7 +375,7 @@ const accumulator = (function () {
 	case "empty": return {type: "dec",   dec: d};
 	case "dec":   return {type: "dec",   dec: fold_digit(state.dec, d)};
 	case "float": return {type: "float", frac: fold_digit(state.frac, d), dec: state.dec};
-	case "word":  return {type: "word",  value: state.value + d.toString()};
+	case "var":   return {type: "var",  value: state.value + d.toString()};
     }; }
 
     // Handle the decimal point.
@@ -383,23 +383,32 @@ const accumulator = (function () {
 	case "empty": return {type: "float", dec: 0, frac: 0};
 	case "dec":   return {type: "float", dec: state.dec, frac: 0};
 	case "float": return state;
-	case "word":  throw "Illegal: decimal point in word."
+	case "var":   throw "Illegal: decimal point in word."
     }; }
 
     // Handle an incomming letter.
     function letter(state, l) { switch (state.type) {
-	case "empty": return {type: "word", value: l};
+	case "empty": return {type: "var", value: l};
 	case "dec":   throw "Illegal: letter in numeral."
 	case "float": throw "Illegal: letter in numeral."
-	case "word":  return {type: "word", value: state + l};
+	case "var":   return {type: "var", value: state.value + l};
     }; }
 
     // Return the current value of the accumulator.
-    function value(state, defs) { switch (state.type) {
+    function value(state) { switch (state.type) {
 	case "empty": throw "Empty Accumulator";
 	case "dec":   return state.dec;
 	case "float": return parseFloat(`${state.dec}.${state.frac}`);
-	case "word":  return state.value;
+	case "var":   return state.value;
+    }; }
+
+    // Return the current display value. Similar to above, but
+    // returned as a string.
+    function display(state, defs) { switch (state.type) {
+	case "empty": return "";
+	case "dec":   return state.dec.toString();
+	case "float": return `${state.dec}.${state.frac}`;
+	case "var":   return state.value;
     }; }
 
     // Return whether or not the accumulator is in the empty state.
@@ -410,7 +419,7 @@ const accumulator = (function () {
     return {
 	init:       empty,
 	methods:    {clear, digit, decimal, letter},
-	properties: {value, isEmpty}
+	properties: {value, display, isEmpty}
     };
 })();
 
@@ -435,7 +444,7 @@ const calculator = (function () {
 	    const value = accumulator.properties.value(state.accum);
 	    const accum = accumulator.methods.clear(state.accum);
 	    const numeric = (typeof(value) === "string") && state.defs[value]
-		? calc.defs[value]
+		? state.defs[value]
 		: value;
 	    const stack = [...state.stack, numeric];
 	    const tape = [...state.tape, value];
@@ -499,10 +508,11 @@ const calculator = (function () {
     
     // Accessors
     const accum = (state) => accumulator.properties.value(state.accum);
+    const display = (state) => accumulator.properties.display(state.accum);
 
     return undoable({
 	init,
-	properties: {top, accum},
+	properties: {top, accum, display},
 	methods: {
 	    reset,
 	    enter,
@@ -536,7 +546,7 @@ function app(element) {
     );
 
     // Render a key / value pair to a string
-    const pair = (key, value) => item => `${key}: ${value}`;
+    const pair = ([key, value]) => button({}, debug(`${key}: ${value}`));
 
     // Append child elements to `element`.
     const append = (...items) => element.appendChild(...items);
@@ -602,8 +612,8 @@ function app(element) {
 	    // In keyboard mode, there is no onscreen keyboard.
 	    //
 	    // We use the space to show the tape.
-	    const vars = objmap(calc.defs).flatten(pair);
-	    const tape = calc.tape.map((val) => val.toString());
+	    const vars = calc.defs.flatten().map(pair);
+	    const tape = calc.tape.map((val) => div({}, val.toString()));
 	    append(
 		div(
 		    {id: "content"},
@@ -628,13 +638,10 @@ function app(element) {
 	}
 
 	// Render the accumulator
-	append(container(
-	    "accum-container", ">",
-	    span(
-		{id: "accum"},
-		trap(() => actions.accum().toString(), ""),
-		span({id: "cursor"}, "_")
-	    )
+	append(div(
+	    {id: "accum"},
+	    div({}, `${calc.accum.type}`),
+	    div({}, "> " + actions.display()),
 	));
     }
 

@@ -93,11 +93,6 @@
 	  background-color: #cccccc;
       }
 
-      #accum-container {
-	  grid-area: a;
-	  display: flex;
-      }
-
       #vars-container {
 	  grid-area: vars;
 	  background-color: #dddddd;
@@ -110,6 +105,10 @@
       }
 
       #accum {
+	  grid-area: a;
+	  display: grid;
+	  grid-template-rows: 1fr;
+	  grid-template-columns: 4em 1fr;
 	  font-size: 18pt;
 	  margin: 0;
 	  padding: 0;
@@ -117,20 +116,17 @@
 	  margin: 0.25em;
       }
 
+      #accum > :last-child::after {
+	  content: "_";
+	  font-weight: bold;
+	  -webkit-animation: .75s linear infinite condemned_blink_effect; /* for Safari 4.0 - 8.0 */
+	  animation: .75s linear infinite condemned_blink_effect;
+      }
+
       h1 {
 	  display: grid;
 	  font-family: "arial";
 	  font-size: 18pt;
-      }
-
-      /* Use CSS animations to simulate the <blink> tag for the cursor */
-      #cursor {
-	  -webkit-animation: .75s linear infinite condemned_blink_effect; /* for Safari 4.0 - 8.0 */
-	  animation: .75s linear infinite condemned_blink_effect;
-	  font-size: 26pt;
-	  //border-bottom: 2px solid black;
-	  margin: 0;
-	  padding: 0;
       }
 
       /* for Safari 4.0 - 8.0 */
