@@ -6,6 +6,10 @@
 //
 // You could think of this as an exploration of functional programming
 // using javascript.
+//
+// The first part of this file builds up to a bare-bones
+// single-page-app framework that resembles a minimalist React + Redux
+// store.
 
 
 /*** Functional Programming Helpers ************************************/
@@ -244,6 +248,9 @@ const radio_group = (selected, ...items) => items.map(
 
 /*** Calculator business logic ********************************************/
 
+// This section represents the calculator itself, which is really a
+// simple virtual machine.
+
 
 // Implement a built-in calculator function.
 //
@@ -260,8 +267,8 @@ function builtin(arity, func) {
     } else {
 	// Otherwise we need to consume just the arguments we need.
 	return (stack) => {
-	    // the index on the stack where the operands begin.
 	    if (stack.length >= arity) {
+		// the index on the stack where the operands begin.
 		const pivot = stack.length - arity;
 		const args = stack.slice(pivot);
 		return [...stack.slice(0, pivot), func(...args)];
@@ -349,8 +356,8 @@ const builtins = {
 // A type representing the calculator's input accumulator.
 //
 // It is just the usual methods for parsing base 10 values, but
-// expressed in a stateless fashion, since that's the paradigm we're
-// working in.
+// expressed in a stateless fashion. Another way you can think of it
+// is that this is really a simple "lexer" monad.
 //
 // The accumulator starts out empty.
 // If the first character is a digit, accumulator is in decimal mode.
