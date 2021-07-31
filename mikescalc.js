@@ -442,7 +442,7 @@ const calculator = (function () {
 	tape: [],
 	defs: {},
 	accum: accumulator.init,
-	showing: "keyboard"
+	showing: "basic"
     };
 
     // transfer accumulator to stack
