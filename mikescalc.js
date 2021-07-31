@@ -615,19 +615,15 @@ function app(element) {
 	    ...calc.stack.map((value) => div({}, value.toString()))
 	));
 
+	const vars = calc.defs.flatten().map(pair);
+	append(container("vars-container", "Vars", ...vars));
+
 	if (calc.showing === "keyboard") {
 	    // In keyboard mode, there is no onscreen keyboard.
 	    //
-	    // We use the space to show the tape.
-	    const vars = calc.defs.flatten().map(pair);
+	    // We use the space to show the tape.	
 	    const tape = calc.tape.map((val) => div({}, val.toString()));
-	    append(
-		div(
-		    {id: "content"},
-		    container("vars-container", "Vars", ...vars),
-		    container("tape-container", "Tape", ...tape)
-		).setStyle("grid-template-areas", "\"vars tape\"")
-	    );
+	    append(container("tape-container", "Tape", ...tape))
 	} else {
 	    // Otherwise, render the keypad appropriate for the mode
 	    // we've entered.
