@@ -581,7 +581,7 @@ function app(element) {
 		// either we are using physical keyboard...
 		{
 		    key: "keyboard",
-		    label: "Keyboard",
+		    label: "Tape",
 		    action: () => actions.show("keyboard")
 		},
 
