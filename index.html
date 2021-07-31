@@ -31,23 +31,40 @@
 	  background: #aaaaaa;
       }
 
-      /* Establish basic grid */
       #state {
 	  display: grid;
-	  grid-template: 3em 1fr 1fr 2.5em / 20em 1fr 1fr 1fr;
+	  position: absolute;
+	  top: 0;
+	  right: 0;
+	  bottom: 0;
+	  left: 0;
+	  padding: 0.5em;
 	  grid-gap: 0.5em;
-	  grid-template-areas:
+      }
+
+      /* Grid for landscape-like aspect ratios */
+      @media (min-aspect-ratio: 1/1) {
+	  #state {
+	      grid-template: 3em 1fr 1fr 2.5em / 20em 1fr 1fr 1fr;
+	      grid-template-areas:
 	          "a a t t"
 		  "s c c c"
 		  "s c c c"
 		  "m m m m";
+	  }
+      }
 
-	  position: absolute;
-	  bottom: 0;
-	  top: 0;
-	  right: 0;
-	  left: 0;
-	  padding: 0.5em;
+      /* Grid for portrait-like aspect ratios */
+      @media (max-aspect-ratio: 1/1) {
+	  /* Establish basic grid */
+	  #state {
+	      grid-template: 3em 1fr 2fr 2.5em / 20em 1fr 1fr 1fr;
+	      grid-template-areas:
+	          "a a t t"
+		  "s s s s"
+		  "c c c c"
+		  "m m m m";
+	  }
       }
 
       /* The content area subgrid */
