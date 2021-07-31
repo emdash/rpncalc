@@ -735,8 +735,7 @@ function app(element) {
     const scientific = layout(
 	"sin cos  tan   hypot  ",
 	"log ln   log10 log2   ",
-	"pow exp  sqrt  .      ",
-	"PI  E    SQRT2 SQRT1_2",
+	"pow exp  sqrt  PI     ",
 	"=   /   *      -      ",
 	"7   8   9      +      ",
 	"4   5   6      +      ",
