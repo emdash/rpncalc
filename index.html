@@ -2,6 +2,10 @@
   <head>
     <title>Mike's Calculator</title>
     <style>
+      html {
+	  font-size: 4vw;
+      }
+      
       body {
 	  display: block;
 	  font-family: "mono";
@@ -38,14 +42,14 @@
 	  right: 0;
 	  bottom: 0;
 	  left: 0;
-	  padding: 0.5em;
-	  grid-gap: 0.5em;
+	  padding: 0.5rem;
+	  grid-gap: 0.5rem;
       }
 
       /* Grid for landscape-like aspect ratios */
       @media (min-aspect-ratio: 1/1) {
 	  #state {
-	      grid-template: 3em 1fr 1fr 2.5em / 20em 1fr 1fr 1fr;
+	      grid-template: 3rem 1fr 1fr 2.5rem / 20rem 1fr 1fr 1fr;
 	      grid-template-areas:
 	          "a a t t"
 		  "s c c c"
@@ -55,10 +59,10 @@
       }
 
       /* Grid for portrait-like aspect ratios */
-      @media (max-aspect-ratio: 1/1) {
+      @media (max-aspect-ratio: 1/1) or (aspect-ratio: 1/1) {
 	  /* Establish basic grid */
 	  #state {
-	      grid-template: 3em 1fr 2fr 2.5em / 20em 1fr 1fr 1fr;
+	      grid-template: 3rem 1fr 2fr 3rem / 1fr 1fr;
 	      grid-template-areas:
 	          "a a t t"
 		  "s s s s"
@@ -71,11 +75,7 @@
       #content {
 	  grid-area: c;
 	  display: grid;
-	  grid-gap: 0.5em;
-      }
-
-      #content > button {
-	  font-size: 20pt;
+	  grid-gap: 0.5rem;
       }
 
       /* Mode */
@@ -84,7 +84,7 @@
 	  display: flex;
 	  grid-template-rows: 1fr;
 	  grid-template-columns: repeat(12, 1fr);
-	  grid-gap: 0.5em;
+	  grid-gap: 0.5rem;
 	  background-color: #dddddd;
       }
 
@@ -94,20 +94,19 @@
 	  justify-content: flex-end;
 	  grid-template-rows: 1fr;
 	  grid-template-columns: repeat(12, 1fr);
-	  grid-gap: 0.5em;
+	  grid-gap: 0.5rem;
       }
       
 
       #tools > button[selected="true"] {
 	  background-color: #aaaaaa;
-	  border-radius-top: 0.25em;
+	  border-radius-top: 0.25rem;
       }
 
       #stack-container {
 	  grid-area: s;
 	  grid-template-rows: repeat(24, 1fr);
 	  background-color: #dddddd;
-	  font-size: 18pt;
       }
 
       #stack-container:nth-child(even) {
@@ -117,7 +116,7 @@
       #vars-container {
 	  grid-area: vars;
 	  background-color: #dddddd;
-	  padding-left: 0.5em;
+	  padding-left: 0.5rem;
       }
 
       #tape-container {
@@ -126,15 +125,15 @@
       }
 
       #accum {
+	  align-items: center;
 	  grid-area: a;
 	  display: grid;
 	  grid-template-rows: 1fr;
-	  grid-template-columns: 4em 1fr;
-	  font-size: 18pt;
+	  grid-template-columns: 4rem 1fr;
 	  margin: 0;
 	  padding: 0;
-	  margin-left: 1em;
-	  margin: 0.25em;
+	  margin-left: 1rem;
+	  margin: 0.25rem;
       }
 
       #accum > :last-child::after {
@@ -147,7 +146,7 @@
       h1 {
 	  display: grid;
 	  font-family: "arial";
-	  font-size: 18pt;
+	  font-size: larger;
       }
 
       /* for Safari 4.0 - 8.0 */
