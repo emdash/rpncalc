@@ -460,17 +460,31 @@ const calculator = (function () {
 	showing: "basic"
     };
 
-    // transfer accumulator to stack
+    // push value onto stack, bypassing the accumulator.
+    function push(state, value) {
+	const numeric = (
+	    // if value is a string, and is defined...
+	    (typeof(value) === "string") && state.defs[value]
+	    // ...push the value after lookup...
+		? state.defs[value]
+	    // ...otherwise push the value unmodified.
+		: value
+	);
+	// concatenate the new element onto the stack:
+	const stack = [...state.stack, numeric];
+	// concatenate the literal value onto the tape.
+	const tape  = [...state.tape,  value];
+	return {...state, stack, tape};
+    }
+
+    // transfer accumulator to stack.
+    //
+    // this will clear the accumulator.
     function enter(state) {
 	if (!accumulator.properties.isEmpty(state.accum)) {
 	    const value = accumulator.properties.value(state.accum);
 	    const accum = accumulator.methods.clear(state.accum);
-	    const numeric = (typeof(value) === "string") && state.defs[value]
-		? state.defs[value]
-		: value;
-	    const stack = [...state.stack, numeric];
-	    const tape = [...state.tape, value];
-	    return {...state, stack, tape, accum};
+	    return {...push(state, value), accum};
 	} else {
 	    return state;
 	}
@@ -537,6 +551,7 @@ const calculator = (function () {
 	properties: {top, accum, display},
 	methods: {
 	    reset,
+	    push,
 	    enter,
 	    store,
 	    operator,
@@ -625,8 +640,24 @@ function app(element) {
 	    ...calc.stack.map((value) => div({}, value.toString()))
 	));
 
-	const vars = calc.defs.flatten().map(pair);
-	append(container("vars-container", "Vars", ...vars));
+	// Render the variables. Clicking a variable places it onto the stack.
+	append(
+	    container(
+		"vars-container",
+		"Vars",
+		...calc
+		    .defs
+		    .flatten()
+		    .map(
+			([name, value]) => {
+			    console.log(name, value);
+			    return button({}, pair(name, value)).handle(
+				"click", () => actions.push(name)
+			    );
+			}
+		    )
+	    )
+	);
 
 	if (calc.showing === "keyboard") {
 	    // In keyboard mode, there is no onscreen keyboard.
