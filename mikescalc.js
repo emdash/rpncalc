@@ -229,6 +229,10 @@ const pair = (key, value) => button({}, debug(`${key}: ${value}`));
 
 
 // Monkey patch Element so that a few useful things can be chained.
+//
+// XXX: this has an annoying side-effect that these methods appear as
+// attributes in the HTML inspector, making an otherwise clean DOM
+// tree look pretty cluttered and hard to read. At least in FireFox.
 HTMLElement.prototype.handle = function (event, handler) {
     this.addEventListener(event, handler);
     return this;
