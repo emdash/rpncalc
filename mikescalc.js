@@ -263,6 +263,7 @@ const radio_group = (selected, ...items) => items.map(
 
 /*** Calculator business logic ********************************************/
 
+
 // This section represents the calculator itself, which is really a
 // simple virtual machine.
 
@@ -462,14 +463,12 @@ const calculator = (function () {
 
     // push value onto stack, bypassing the accumulator.
     function push(state, value) {
-	const numeric = (
-	    // if value is a string, and is defined...
-	    (typeof(value) === "string") && state.defs[value]
-	    // ...push the value after lookup...
-		? state.defs[value]
-	    // ...otherwise push the value unmodified.
-		: value
-	);
+	// if value is a string, and is defined...
+	const numeric = (typeof(value) === "string") && state.defs[value]
+	// ...push the value after lookup...
+	      ? state.defs[value]
+	// ...otherwise push the value unmodified.
+	      : value;
 	// concatenate the new element onto the stack:
 	const stack = [...state.stack, numeric];
 	// concatenate the literal value onto the tape.
@@ -775,8 +774,12 @@ function app(element) {
 	"pow exp  sqrt  PI     ",
 	"=   /   *      -      ",
 	"7   8   9      +      ",
+	"7   8   9      +      ",
+	"4   5   6      +      ",
 	"4   5   6      +      ",
 	"1   2   3      #      ",
+	"1   2   3      #      ",
+	"0   0   dec    #      ",
 	"0   0   dec    #      ",
     );
 
