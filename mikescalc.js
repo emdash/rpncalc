@@ -546,21 +546,16 @@ function app(element) {
 	    }
 	}
     })();
-    
-    // Renders a labeled container
-    const container = (id, name, ...content) => div(
-	{id, "class": "grid"}, h1({}, name), ...content
-    );
-
-    // Render a key / value pair to a string
-    const pair = ([key, value]) => button({}, debug(`${key}: ${value}`));
 
     // Append child elements to `element`.
+    //
+    // XXX: this is stateful and cheaty.
     const append = (...items) => element.appendChild(...items);
-    
+
+    // Render the calculator state as HTML
     function render(state, actions) {
-	// Most (or all?) of this code doesn't care about the undo /
-	// redo state, so we create a shorthand here.
+	// Most of this code doesn't care about the undo /
+	// redo stacks.
 	const calc = state.inner;
 	const showing = calc.showing;
 
