@@ -216,6 +216,14 @@ const tr     = (a, ...c)  => el("tr",     a, ...c);
 const td     = (a, ...c)  => el("td",     a, ...c);
 const table  = (a, ...c)  => el("table",  a, ...c);
 
+// Renders a labeled container
+const container = (id, name, ...content) => div(
+    {id, "class": "grid"}, h1({}, name), ...content
+);
+
+// Render a key / value pair to a string
+const pair = (key, value) => button({}, debug(`${key}: ${value}`));
+
 
 /* abstract behaviors *******************************************************/
 
@@ -536,16 +544,6 @@ const calculator = (function () {
 
 
 /*** Application entry point *************************************************/
-
-    
-// Renders a labeled container
-const container = (id, name, ...content) => div(
-    {id, "class": "grid"}, h1({}, name), ...content
-);
-
-
-// Render a key / value pair to a string
-const pair = ([key, value]) => button({}, debug(`${key}: ${value}`));
 
 
 // Browser / HTML-specific code to render the calculator state and
