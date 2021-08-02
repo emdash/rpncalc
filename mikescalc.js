@@ -148,6 +148,9 @@ function undoable({init, methods, properties}) {
 
 // The IO monad, for JS in the browser.
 //
+// This is some functional magic which helps adapt between input,
+// output, and state transformer functions.
+//
 // Given a type description for an immutable type, returns a wrapper
 // type which has a corresponding mutator for every method in the
 // underlying type.
