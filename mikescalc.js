@@ -41,6 +41,14 @@ function trap(f, err) {
 }
 
 
+// Return a reversed copy of an array.
+function reversed(array) {
+    const ret = [...array];
+    ret.reverse();
+    return ret;
+}
+
+
 // Return a new object, applying func to every value in obj.
 function objmap(func, obj) {
     const ret = {};
@@ -651,7 +659,7 @@ function app(element) {
 	append(container(
 	    "stack-container",
 	    "Stack",
-	    ...calc.stack.map((value) => div({}, value.toString()))
+	    ...reversed(calc.stack).map((value) => div({}, value.toString()))
 	));
 
 	// Render the variables. Clicking a variable places it onto the stack.
