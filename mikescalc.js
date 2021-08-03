@@ -686,7 +686,7 @@ function app(element) {
 	    // In keyboard mode, there is no onscreen keyboard.
 	    //
 	    // We use the space to show the tape.	
-	    const tape = calc.tape.map((val) => div({}, val.toString()));
+	    const tape = calc.tape.map((val) => div({}, symbols[val] || val.toString()));
 	    append(container("tape-container", "Tape", ...tape))
 	} else {
 	    // Otherwise, render the keypad appropriate for the mode
