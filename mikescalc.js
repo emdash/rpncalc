@@ -324,6 +324,7 @@ const builtins = {
     sub:     builtin(2, (x, y) => x - y),
     mul:     builtin(2, (x, y) => x * y),
     div:     builtin(2, (x, y) => x / y),
+    square:  builtin(1, (x) => x * x),
     abs:     builtin(1, Math.abs),
     acos:    builtin(1, Math.acos),
     asin:    builtin(1, Math.asin),
@@ -379,6 +380,7 @@ const symbols = {
     sub:  "-",
     mul:  "⨉",
     div:  "÷",
+    square: "x\u{00B2}",
     abs:  "|\u{1D499}|",
     sqrt: "\u{221A}",
     E:    "\u{1D486}",
@@ -789,18 +791,18 @@ function app(element) {
     );
 
     const scientific = layout(
-	"sin cos  tan   hypot  ",
-	"log ln   log10 log2   ",
-	"pow exp  sqrt  .      ",
-	"=   /   *      -      ",
-	"7   8   9      +      ",
-	"7   8   9      +      ",
-	"4   5   6      +      ",
-	"4   5   6      +      ",
-	"1   2   3      #      ",
-	"1   2   3      #      ",
-	"0   0   dec    #      ",
-	"0   0   dec    #      ",
+	"sin cos  tan     hypot",
+	"log ln   log10   log2 ",
+	"pow exp  square  sqrt ",
+	"=   /    *       -    ",
+	"7   8    9       +    ",
+	"7   8    9       +    ",
+	"4   5    6       +    ",
+	"4   5    6       +    ",
+	"1   2    3       #    ",
+	"1   2    3       #    ",
+	"0   0    dec     #    ",
+	"0   0    dec     #    ",
     );
 
     const a = layout(
@@ -821,13 +823,13 @@ function app(element) {
     
     // Layout consisting of all available functions.
     const fn = layout(
-        "abs   acos   asin  atan   atan2",
-        "ceil  clz32  cos   exp    floor",
-        "imul  fround log   max    min  ",
-	"pow   random round sin    sqrt ",
-	"tan   log10  log2  log1p  expm1",
-	"cosh  sinh   tanh  acosh  asinh",
-	"atanh hypot  sign  cbrt   .    "
+        "abs   acos   asin  atan atan2",
+        "ceil  clz32  cos   exp  floor",
+        "imul  fround log   max  min  ",
+	"pow   random round sin  square",
+	"sqrt  tan    log10 log2 log1p",
+	"expm1 cosh   sinh  tanh acosh",
+	"asinh atanh  hypot sign cbrt"
     );
 
     // These are the standard layouts
