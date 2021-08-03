@@ -745,23 +745,25 @@ function app(element) {
 	"/":  operator("div"),
     };
 
+    // Return the layout entry for a token in our layout dsl.
+    function entry (token) {
+	if (digits.has(token)) {
+	    return digit(token);
+	} else if (token in builtins) {
+	    return operator(token);
+	} else if (token in specials) {
+	    return specials[token];
+	} else if (token == ".") {
+	    return {name: "."};
+	} else {
+	    return symbol(token);
+	}
+    };
+
     // Create the 2D key layout for the given layout spec.
     const layout = (...rows) => {
-	// Create an entry for each symbol in the row.
-	function entry (key) {
-	    if (digits.has(key)) {
-		return digit(key);
-	    } else if (key in builtins) {
-		return operator(key);
-	    } else if (key in specials) {
-		return specials[key];
-	    } else if (key == ".") {
-		return {name: "."};
-	    } else {
-		return symbol(key);
-	    }
-	};
-
+	// Convert the input text into a array of array of entry
+	// records.
 	const entries = rows.map(split).map(row => row.map(entry));
 
 	// Recombine the layout into a string compatible with CSS.
