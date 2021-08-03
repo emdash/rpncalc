@@ -729,7 +729,8 @@ function app(element) {
 
     debug(digits);
 
-    // Short-cut characters for common symbols and other funtions.
+    // Table of functions which are special-case for one reason or
+    // another.
     const specials = {
 	clr:  {name: "clr",   label: "clr",   func: state.clear},
 	rst:  {name: "rst",   label: "rst",   func: state.reset},
