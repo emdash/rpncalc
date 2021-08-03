@@ -209,10 +209,6 @@ function el(name, attrs, ...children) {
 }
 
 
-// Drop first param to make it easier to use `el` with `map`.
-const wrap   = (f) => (...c) => f({}, ...c);
-
-
 // standard elements
 const div    = (a, ...c)  => el("div",    a, ...c);
 const span   = (a, ...c)  => el("span",   a, ...c);
