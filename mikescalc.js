@@ -284,7 +284,7 @@ function builtin(arity, func) {
     if (arity === null) {
 	// Null arity indicates the function is variadic and consumes the
 	// whole stack, so return a stack containing only the result.
-	return (...args) => [func(...args)];
+	return (stack) => [func(...stack)];
     } else {
 	// Otherwise we need to consume just the arguments we need.
 	return (stack) => {
