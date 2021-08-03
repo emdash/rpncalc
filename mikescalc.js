@@ -355,15 +355,30 @@ const builtins = {
     trunc:   builtin(2, Math.trunc),
     sign:    builtin(2, Math.sign),
     cbrt:    builtin(2, Math.cbrt),
-    E:       constant(Math.E),
     LOG2E:   constant(Math.LOG2E),
     LOG10E:  constant(Math.LOG10E),
     LN2:     constant(Math.LN2),
     LN10:    constant(Math.LN10),
-    PI:      constant(Math.PI),
     SQRT2:   constant(Math.SQRT2),
     SQRT1_2: constant(Math.SQRT1_2)
 }
+
+const constants = {
+    "\u{1D486}": Math.E,
+    "\u{1D70B}": Math.PI,
+};
+
+// Specify visual symbol for operators as appropriate.
+const symbols = {
+    add:  "+",
+    sub:  "-",
+    mul:  "⨉",
+    div:  "÷",
+    abs:  "|\u{1D499}|",
+    sqrt: "\u{221A}",
+    E:    "\u{1D486}",
+    PI:   "\u{1D70B}",
+};
 
 
 /* Calculator parts *******************************************************/
@@ -456,7 +471,7 @@ const calculator = (function () {
 	ops: builtins,
 	stack: [],
 	tape: [],
-	defs: {},
+	defs: constants,
 	accum: accumulator.init,
 	showing: "basic"
     };
@@ -701,7 +716,7 @@ function app(element) {
     const digits   = new Set("0123456789");
     const digit    = (d) => ({name: `d${d}`, label: d, func: () => state.digit(parseInt(d))});
     const symbol   = (s) => ({name: s, label: s, func: () => state.letter(s)});
-    const operator = (f) => ({name: f, label: f, func: () => state.operator(f)});
+    const operator = (f) => ({name: f, label: symbols[f] || f, func: () => state.operator(f)});
 
     debug(digits);
 
@@ -712,12 +727,12 @@ function app(element) {
 	dec:  {name: "dec",   label: ".",     func: state.decimal},
 	undo: {name: "undo",  label: "undo",  func: state.undo},
 	redo: {name: "redo",  label: "redo",  func: state.redo},
-	"+":  {name: "add",   label: "add",   func: () => state.operator("add")},
-	"-":  {name: "sub",   label: "sub",   func: () => state.operator("sub")},
-	"*":  {name: "mul",   label: "mul",   func: () => state.operator("mul")},
-	"/":  {name: "div",   label: "div",   func: () => state.operator("div")},
 	"=":  {name: "store", label: "=",     func: state.store},
 	"#":  {name: "enter", label: "enter", func: state.enter},
+	"+":  operator("add"),
+	"-":  operator("sub"),
+	"*":  operator("mul"),
+	"/":  operator("div"),
     };
 
     // Create the 2D key layout for the given layout spec.
@@ -771,7 +786,7 @@ function app(element) {
     const scientific = layout(
 	"sin cos  tan   hypot  ",
 	"log ln   log10 log2   ",
-	"pow exp  sqrt  PI     ",
+	"pow exp  sqrt  .      ",
 	"=   /   *      -      ",
 	"7   8   9      +      ",
 	"7   8   9      +      ",
