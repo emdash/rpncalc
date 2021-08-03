@@ -380,6 +380,8 @@ const symbols = {
     sub:  "-",
     mul:  "⨉",
     div:  "÷",
+    pow:  "x\u{207F}",
+    exp:  "\u{1D486}\u{207F}",
     square: "x\u{00B2}",
     abs:  "|\u{1D499}|",
     sqrt: "\u{221A}",
