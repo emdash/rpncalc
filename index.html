@@ -110,14 +110,40 @@
       #stack-container {
 	  grid-area: s;
 	  grid-template-rows: repeat(24, 1fr);
+	  overflow-y: auto;
+	  overflow-x: hidden;
+      }
+
+      #stack-container div {
+	  margin-left: 0.25rem;
+	  padding: 0.25em;
+	  overflow: hidden;
+	  text-overflow: ellipsis;
+	  margin-bottom: 0.25rem;
+	  background-color: #dddddd;
+	  border-radius: 0.5em;
+	  text-align: center;
       }
 
       #vars-container {
 	  grid-area: v;
+	  display: grid;
+	  grid-template-columns: repeat(3, 1fr);
+	  grid-auto-rows: 2rem;
+	  grid-gap: 0.25rem;
+	  overflow-y: auto;
+	  overflow-x: hidden;
+      }
+
+      #vars-container button {
+	  overflow: hidden;
+	  text-overflow: ellipsis;
       }
 
       #tape-container {
 	  grid-area: c;
+	  overflow-x: hidden;
+	  overflow-y: auto;
       }
 
       #accum {
