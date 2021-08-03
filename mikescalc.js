@@ -229,8 +229,9 @@ const container = (id, name, ...content) => div(
     {id, "class": "grid"}, h1({}, name), ...content
 );
 
+
 // Render a key / value pair to a string
-const pair = (key, value) => button({}, debug(`${key}: ${value}`));
+const pair = (key, value) => `${key}: ${value}`;
 
 
 /* abstract behaviors *******************************************************/
@@ -673,7 +674,7 @@ function app(element) {
 		    .map(
 			([name, value]) => {
 			    console.log(name, value);
-			    return button({}, pair(name, value)).handle(
+			    return button({}, name).handle(
 				"click", () => actions.push(name)
 			    );
 			}
