@@ -16,14 +16,14 @@
 
 
 // Helper for debugging in expressions.
-function debug(expr, ...other) {
+export function debug(expr, ...other) {
     console.log("debug", expr, ...other);
     return expr;
 }
 
 
 // Simple assert is used for testing in a couple places.
-function assert(cond) {
+export function assert(cond) {
     if (!cond) {
 	throw "Assertion failed";
     }
@@ -31,7 +31,7 @@ function assert(cond) {
 
 
 // Call `f()` and return its result, or `err` if `f()` throws.
-function trap(f, err) {
+export function trap(f, err) {
     try {
 	return f();
     } catch (e) {
@@ -42,7 +42,7 @@ function trap(f, err) {
 
 
 // Return a reversed copy of an array.
-function reversed(array) {
+export function reversed(array) {
     const ret = [...array];
     ret.reverse();
     return ret;
@@ -50,7 +50,7 @@ function reversed(array) {
 
 
 // Return a new object, applying func to every value in obj.
-function objmap(func, obj) {
+export function objmap(func, obj) {
     const ret = {};
     let key;
 
@@ -65,7 +65,7 @@ function objmap(func, obj) {
 
 
 // Flatten an object into a list of [name, value] pairs.
-const flatten = (obj) => Object
+export const flatten = (obj) => Object
       .getOwnPropertyNames(obj)
       .map((name) => [name, obj[name]]);
 
@@ -77,7 +77,7 @@ Object.prototype.flatten = function ()     {return flatten(this);};
 
 
 // Hoist methods from `module` into `slot` in the outer object.
-const hoist_methods  = (slot, module) => module.methods.map(
+export const hoist_methods  = (slot, module) => module.methods.map(
     (method) => (state, ...args) => ({
 	...state,
 	[slot]: method(state[slot], ...args)
@@ -86,14 +86,14 @@ const hoist_methods  = (slot, module) => module.methods.map(
 
 
 // Hoist properties from `module` into `slot`, a field in the outer object.
-const hoist_props = (slot, module) => module.properties.map(
+export const hoist_props = (slot, module) => module.properties.map(
     (prop) => (state, ...args) => prop(state[slot], ...args)
 );
 
 
 // Undoable "mixin". Make the underlying type "undoable" by wrapping
 // its state and methods.
-function undoable({init, methods, properties}) {
+export function undoable({init, methods, properties}) {
     // Each method in `methods` will be wrapped with this function.
     //
     // This handles the argument wrangling, and will fold the previous
@@ -165,7 +165,7 @@ function undoable({init, methods, properties}) {
 //
 // When a mutator is called, the new state is passed to the `output`
 // callback.
-function io({init, methods, properties}, output) {
+export function io({init, methods, properties}, output) {
     let state = init;
 
     const method = (m) => (...args) => {
@@ -190,7 +190,7 @@ function io({init, methods, properties}, output) {
 // functional wrapper around DOM API.
 //
 // No virtual dom here, everything is direct.
-function el(name, attrs, ...children) {
+export function el(name, attrs, ...children) {
     const ret = document.createElement(name);
 
     for (let key in attrs) {
@@ -210,29 +210,29 @@ function el(name, attrs, ...children) {
 
 
 // standard elements
-const div    = (a, ...c)  => el("div",    a, ...c);
-const span   = (a, ...c)  => el("span",   a, ...c);
-const h1     = (a, ...c)  => el("h1",     a, ...c);
-const button = (a, ...c)  => el("button", a, ...c);
-const li     = (a, ...c)  => el("li",     a, ...c);
-const ul     = (a, ...c)  => el("ul",     a, ...c);
-const tr     = (a, ...c)  => el("tr",     a, ...c);
-const td     = (a, ...c)  => el("td",     a, ...c);
-const table  = (a, ...c)  => el("table",  a, ...c);
+export const div    = (a, ...c)  => el("div",    a, ...c);
+export const span   = (a, ...c)  => el("span",   a, ...c);
+export const h1     = (a, ...c)  => el("h1",     a, ...c);
+export const button = (a, ...c)  => el("button", a, ...c);
+export const li     = (a, ...c)  => el("li",     a, ...c);
+export const ul     = (a, ...c)  => el("ul",     a, ...c);
+export const tr     = (a, ...c)  => el("tr",     a, ...c);
+export const td     = (a, ...c)  => el("td",     a, ...c);
+export const table  = (a, ...c)  => el("table",  a, ...c);
 
 // Renders a labeled container
-const container = (id, name, ...content) => div(
+export const container = (id, name, ...content) => div(
     {id, "class": "grid"}, h1({}, name), ...content
 );
 
 
 // Render a key / value pair to a string
-const pair = (key, value) => `${key}: ${value}`;
+export const pair = (key, value) => `${key}: ${value}`;
 
 
 /* abstract behaviors *******************************************************/
 
-
+export function monkeyPatch() {
 // Monkey patch Element so that a few useful things can be chained.
 //
 // XXX: this has an annoying side-effect that these methods appear as
@@ -248,6 +248,8 @@ HTMLElement.prototype.setStyle = function (name, value) {
     return this;
 }
 
+};
+
 
 // A group of items representing a mutually-exclusive choice.
 //
@@ -255,7 +257,7 @@ HTMLElement.prototype.setStyle = function (name, value) {
 //
 // The item who's key matches `selected` will be rendered with the
 // `selected: "true"` attribute.
-const radio_group = (selected, ...items) => items.map(
+export const radio_group = (selected, ...items) => items.map(
     ({key, label, action}) => button(
 	(key === selected) ? {selected: "true"} : {},
 	label
@@ -280,7 +282,7 @@ const radio_group = (selected, ...items) => items.map(
 //
 // If the stack does not contain `arity` elements, then "stack
 // underflow" is thrown.
-function builtin(arity, func) {
+export function builtin(arity, func) {
     if (arity === null) {
 	// Null arity indicates the function is variadic and consumes the
 	// whole stack, so return a stack containing only the result.
@@ -302,7 +304,7 @@ function builtin(arity, func) {
 
 
 // Special case of above for constants.
-const constant = (c) => builtin(0, () => c);
+export const constant = (c) => builtin(0, () => c);
 
 
 // Define the builtin functions of the calculator.
@@ -319,7 +321,7 @@ const constant = (c) => builtin(0, () => c);
 //
 // TBD: Associate a unicode symbol or image for each function, which
 // will be used as the button icon for onscreen use.
-const builtins = {
+export const builtins = {
     add:     builtin(2, (x, y) => x + y),
     sub:     builtin(2, (x, y) => x - y),
     mul:     builtin(2, (x, y) => x * y),
@@ -369,13 +371,13 @@ const builtins = {
     SQRT1_2: constant(Math.SQRT1_2)
 }
 
-const constants = {
+export const constants = {
     "\u{1D486}": Math.E,
     "\u{1D70B}": Math.PI,
 };
 
 // Specify visual symbol for operators as appropriate.
-const symbols = {
+export const symbols = {
     add:  "+",
     sub:  "-",
     mul:  "⨉",
@@ -408,7 +410,7 @@ const symbols = {
 // until it is cleared, via clear().
 //
 // TBD: function mode
-const accumulator = (function () {
+export const accumulator = (function () {
     const empty = {type: "empty"};
 
     // Clear the accumulator state.
@@ -475,7 +477,7 @@ const accumulator = (function () {
 // - stack
 // - input stream
 // - current definitions
-const calculator = (function () {
+export const calculator = (function () {
     const init = {
 	ops: builtins,
 	stack: [],
@@ -590,7 +592,7 @@ const calculator = (function () {
 
 // Browser / HTML-specific code to render the calculator state and
 // respond to input.
-function app(element) {
+export function app(element) {
     // Find the right style rule;
     let keyboard_style_rule = (function () {
 	for (let rule of document.styleSheets[0].rules) {
@@ -891,6 +893,3 @@ function app(element) {
     // Return value is the debug interface.
     return {...state, layouts};
 }
-
-// Create a calculator component using the following dom elements
-const calc = app(document.getElementById("state"));
