@@ -179,7 +179,7 @@ export function div(a /*: Rat */, b /*: Rat */) /*: Rat */ {
 
 // Multiplicative inverse of the given rational.
 export function inv(value /*: Rat */) /*: Rat */ {
-    return simplify({num: value.denom, denom: value.num});
+    return {num: value.denom, denom: value.num};
 }
 
 // Return the nearest whole number less than `value`.
