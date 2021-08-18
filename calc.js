@@ -9,14 +9,9 @@
 import {
     debug,
     assert,
-    trap,
-    reversed,
-    objmap,
-    flatten,
     undoable,
     hoist_methods,
     hoist_props,
-    io
 } from './fp.js';
 
 
@@ -162,7 +157,7 @@ export const accumulator = (function () {
 	case "empty": return {type: "dec",   dec: d};
 	case "dec":   return {type: "dec",   dec: fold_digit(state.dec, d)};
 	case "float": return {type: "float", frac: fold_digit(state.frac, d), dec: state.dec};
-	case "var":   return {type: "var",  value: state.value + d.toString()};
+	case "var":   return {type: "var",  id: state.id + d.toString()};
     }; }
 
     // Handle the decimal point.
@@ -175,10 +170,10 @@ export const accumulator = (function () {
 
     // Handle an incomming letter.
     function letter(state, l) { switch (state.type) {
-	case "empty": return {type: "var", value: l};
+	case "empty": return {type: "var", id: l};
 	case "dec":   throw "Illegal: letter in numeral."
 	case "float": throw "Illegal: letter in numeral."
-	case "var":   return {type: "var", value: state.value + l};
+	case "var":   return {type: "var", id: state.id + l};
     }; }
 
     // Return the current value of the accumulator.
@@ -186,7 +181,7 @@ export const accumulator = (function () {
 	case "empty": throw "Empty Accumulator";
 	case "dec":   return state.dec;
 	case "float": return parseFloat(`${state.dec}.${state.frac}`);
-	case "var":   return state.value;
+	case "var":   return state.id;
     }; }
 
     // Return the current display value. Similar to above, but
@@ -195,7 +190,7 @@ export const accumulator = (function () {
 	case "empty": return "";
 	case "dec":   return state.dec.toString();
 	case "float": return `${state.dec}.${state.frac}`;
-	case "var":   return state.value;
+	case "var":   return state.id;
     }; }
 
     // Return whether or not the accumulator is in the empty state.
@@ -258,8 +253,15 @@ export const calculator = (function () {
 	// Ensure accumulator contents are transfered to stack.
 	const auto_enter = enter(state);
 
-	assert(accumulator.properties.isEmpty(auto_enter.accum));
-	assert(operator in auto_enter.ops);
+	assert(
+	    accumulator.properties.isEmpty(auto_enter.accum),
+	    "Accumulator must be empty."
+	);
+
+	assert(
+	    operator in auto_enter.ops,
+	    "Illegal Operator: ${operator}."
+	);
 
 	const stack = auto_enter.ops[operator](auto_enter.stack);
 	const tape = [...auto_enter.tape, operator];
@@ -309,7 +311,7 @@ export const calculator = (function () {
     const accum = (state) => accumulator.properties.value(state.accum);
     const display = (state) => accumulator.properties.display(state.accum);
 
-    return undoable({
+    return {
 	init,
 	properties: {top, accum, display},
 	methods: {
@@ -321,5 +323,5 @@ export const calculator = (function () {
 	    show,
 	    ...hoist_methods('accum', accumulator)
 	}
-    });
+    };
 })();

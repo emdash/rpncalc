@@ -1,6 +1,6 @@
 "use strict";
 
-import {debug, io, reversed} from './fp.js';
+import {debug, io, reversed, undoable} from './fp.js';
 import {builtins, calculator} from './calc.js';
 
 
@@ -161,7 +161,7 @@ export function app(element) {
 
     // This is where we transform the pure calculator type into a
     // stateful wrapper.
-    const state = io(calculator, render);
+    const state = io(undoable(calculator), render);
 
     // Split a string on whitespace, dropping the empty strings.
     const split = (str) => str.split(' ').filter(x => !!x);

@@ -9,9 +9,9 @@ export function debug(expr, ...other) {
 
 
 // Simple assert is used for testing in a couple places.
-export function assert(cond) {
+export function assert(cond, msg) {
     if (!cond) {
-	throw "Assertion failed";
+	throw msg || "Assertion failed";
     }
 }
 
@@ -77,8 +77,9 @@ export const hoist_props = (slot, module) => module.properties.map(
 );
 
 
-// Undoable "mixin". Make the underlying type "undoable" by wrapping
-// its state and methods.
+// Make the underlying type "undoable".
+//
+// Factor out history management from business logic.
 export function undoable({init, methods, properties}) {
     // Each method in `methods` will be wrapped with this function.
     //
@@ -140,22 +141,59 @@ export function undoable({init, methods, properties}) {
 }
 
 
-// The IO monad, for JS in the browser.
+// Make our functional-style code work like immutable.js objects.
 //
-// This is some functional magic which helps adapt between input,
-// output, and state transformer functions.
+// This makes writing unit tests / interactive debugging a lot more
+// ergonomic, since we can just chain method / property calls.
+export function asImmutableObject({init, methods, properties}) {
+    // Lift a plain state value into an object instance.
+    function lift(state) {
+	state.__proto__ = vtable;
+	return state;
+    }
+
+    // Convert transformer method `m` for use in the prototype vtable.
+    //
+    // `this` is treated as the state, and the result is itself lifted
+    // to an instance.
+    const method = (m) => function (...args) {
+	return lift(m(this, ...args));
+    };
+
+    // Convert property `p` for use in the prototype vtable.
+    //
+    // `this` is treated as state. Result is returned unchanged.
+    const property = (p) => function (...args) {
+	return p(this, ...args);
+    };
+
+    // Construct the vtable by wrapping method and property functions
+    // as described above.
+    const vtable = {
+	lift,
+	...methods.map(method),
+	...properties.map(property)
+    };
+
+    return lift(init);
+}
+
+
+// Transform our functional code into a stateful, reactive object.
 //
-// Given a type description for an immutable type, returns a wrapper
-// type which has a corresponding mutator for every method in the
-// underlying type.
+// This is useful for hooking our functional code up to the DOM, and
+// you can view this function as a bare-bones redux store.
 //
-// When a mutator is called, the new state is passed to the `output`
-// callback.
-export function io({init, methods, properties}, output) {
+// When a mutator is called, the internal state is updated, and
+// `output` callback is invoked with the new state.
+export function reactor({init, methods, properties}, output) {
     let state = init;
 
     const method = (m) => (...args) => {
-	state = m(state, ...args); output(state, actions);
+	// update the internal state.
+	state = m(state, ...args);
+	// notify the listener that the state has changed.
+	output(state, actions);
     };
 
     const property = (p) => (...args) => p(state, ...args);
