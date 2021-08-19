@@ -127,7 +127,7 @@ export function toFloat(value /*: Rat */) /*: Number */ {
 // Ported from the cypthon implementation.
 export function fromFloat(value /*: Number*/) /*: Rat */ {
     if (!isFinite(value) || isNaN(value)) {
-	throw "${value} cannot be expressed as a ratio of integers!"
+	throw `${value} cannot be expressed as a ratio of integers!`
     }
 
     // Get the exponent and mantissa
