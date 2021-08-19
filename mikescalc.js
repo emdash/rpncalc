@@ -20,6 +20,8 @@ import {
     radioGroup,
     monkeyPatch,
     math,
+    mrow,
+    mn,
     fraction,
 } from './render.js';
 
@@ -52,14 +54,23 @@ const symbols = {
     f4:   "\u{0031}\u{2044}\u{0034}",
     f8:   "\u{0031}\u{2044}\u{0038}",
     f16:   "\u{0031}\u{2044}\u{0031}\u{0036}",
-    denom: math(fraction("x", "y"))
+    finv: math(fraction("1", "x"))
 };
 
 function display(value) {
     if (typeof(value) === "number") {
 	return div({}, value.toString());
     } else {
-	return div({}, math(fraction(value.num, value.denom)));
+	const {integer, num, denom} = rat.toProper(value);
+	if (denom !== 1 && num !== 0) {
+	    if (integer === 0) {
+		return div({}, math(fraction(num, denom)));
+	    } else {
+		return div({}, math(mrow(mn(integer.toString()), fraction(num, denom))));
+	    }
+	} else {
+	    return div({}, integer.toString());
+	}
     }
 }
 
