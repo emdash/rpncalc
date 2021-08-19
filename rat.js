@@ -126,8 +126,14 @@ export function toFloat(value /*: Rat */) /*: Number */ {
 //
 // Ported from the cypthon implementation.
 export function fromFloat(value /*: Number*/) /*: Rat */ {
+    if (typeof value !== "number") {
+	throw new Error(`${toString(value)} is already a fraction`);
+    }
+
     if (!isFinite(value) || isNaN(value)) {
-	throw `${value} cannot be expressed as a ratio of integers!`
+	throw new Error(
+	    `${JSON.stringify(value)} cannot be expressed as a ratio!`
+	);
     }
 
     // Get the exponent and mantissa
