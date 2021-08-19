@@ -273,18 +273,20 @@ assertEq(
     {num: 3, denom: 8}
 );
 
+
+// Test a bunch of boring arithmetic operators
 assertEq(
     rat.add(rat.zero, rat.one),
     {num: 1, denom: 1}
 );
 
 assertEq(
-    rat.add({num: 3, denom: 16}, {num: 3, denom: 4}),
+    rat.simplify(rat.add({num: 3, denom: 16}, {num: 3, denom: 4})),
     {num: 15, denom: 16}
 );
 
 assertEq(
-    rat.mul({num: 3, denom: 4}, {num: 100, denom: 1}),
+    rat.simplify(rat.mul({num: 3, denom: 4}, {num: 100, denom: 1})),
     {num: 75, denom: 1}
 );
 
@@ -294,12 +296,12 @@ assertEq(
 );
 
 assertEq(
-    rat.div({num: 5, denom: 16}, {num: 1, denom: 16}),
+    rat.simplify(rat.div({num: 5, denom: 16}, {num: 1, denom: 16})),
     {num: 5, denom: 1}
 );
 
 assertEq(
-    rat.div(rat.fromFloat(12.7), rat.fromFloat(25.4)),
+    rat.simplify(rat.div(rat.fromFloat(12.7), rat.fromFloat(25.4))),
     {num: 1, denom: 2}
 );
 
@@ -326,4 +328,21 @@ assertEq(
 assertEq(
     rat.abs({num: -1, denom: 8}),
     {num: 1, denom: 8}
+);
+
+
+// Find some interesting approximations of pi
+assertEq(
+    rat.approx(rat.fromFloat(Math.PI), 64),
+    {num: 201, denom: 64}
+);
+
+assertEq(
+    rat.approx(rat.fromFloat(Math.PI), 32),
+    {num: 101, denom: 32}
+);
+
+assertEq(
+    rat.approx(rat.fromFloat(Math.PI), 7),
+    {num: 22, denom: 7}
 );

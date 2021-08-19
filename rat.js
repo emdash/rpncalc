@@ -155,21 +155,37 @@ export function fromFloat(value /*: Number*/) /*: Rat */ {
 export function add(a /*: Rat */, b /*: Rat */) /*: Rat */ {
     const num = a.num * b.denom + b.num * a.denom;
     const denom = a.denom * b.denom;
-    return simplify({num, denom});
+    return {num, denom};
 }
 
 // Subtract two rational numbers.
 export function sub(a /*: Rat */, b /*: Rat */) /*: Rat */ {
     const num = a.num * b.denom - b.num * a.denom;
-    const denom = a.denom * b.denom;0
-    return simplify({num, denom});
+    const denom = a.denom * b.denom;
+    return {num, denom};
+}
+
+export function lt(a, b) {
+    return a.num * b.denom < b.num * a.denom;
+}
+
+export function lte(a, b) {
+    return a.num * b.denom <= b.num * a.denom;
+}
+
+export function gt(a, b) {
+    return a.num * b.denom > b.num * a.denom;
+}
+
+export function gte(a, b) {
+    return a.num * b.denom >= b.num * a.denom;
 }
 
 // Multiply two rational numbers
 export function mul(a /*: Rat */, b /*: Rat */) /*: Rat */ {
     const num = a.num * b.num;
     const denom = a.denom * b.denom;
-    return simplify({num, denom});
+    return {num, denom};
 }
 
 // Divide two rational numbers.
@@ -201,3 +217,35 @@ export function neg(value /*: Rat */) /*: Rat */ {
 export function abs(value /*: Rat */) /*: Rat */ {
     return {num: Math.abs(value.num), denom: value.denom};
 }
+
+
+// Return the nearest approximation of x with the given denominator.
+//
+// Currently this uses brute force, but I'm too tired to try anything
+// else right now.
+export function approx(value /*: Rat */, denom /*: Int */) {
+    const limit = {num: 1, denom: denom};
+
+    // Convert to proper fraction so that the num is always < denom.
+    const proper = toProper(value);
+
+    // Find the best approximation.
+
+    // XXX: this is O(denom), we can surely do better. OTOH, denom is
+    // almost always going to be < value.denom, and most likely <
+    // 64. So there's a limit to how bad this really is.
+    //
+    // But I have to believe there's a better method than brute force.
+    let num = 0;
+    for (let i = 0, bestErr = one; i <= denom; i++) {
+	const error = abs(sub(proper, {num: i, denom}));
+	if (lt(error, bestErr)) {
+	    num = i;
+	    bestErr = error;
+	}
+    }
+
+    return {num: proper.integer * denom + num, denom};
+}
+
+
