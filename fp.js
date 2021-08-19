@@ -11,7 +11,7 @@ export function debug(expr, ...other) {
 // Simple assert is used for testing in a couple places.
 export function assert(cond, msg) {
     if (!cond) {
-	throw msg || "Assertion failed";
+	throw msg || "Assertion failed!";
     }
 }
 
