@@ -151,6 +151,12 @@ export function fromFloat(value /*: Number*/) /*: Rat */ {
     }
 }
 
+// Promote the given value to a rational if it is a number.
+export const promote = (x) => (typeof(x) === "number") ? fromFloat(x) : x;
+
+// Automagically promote the arguments of `func`.
+export const promoted = (func) => (...args) => func(...args.map(promote));
+
 // Add two rational numbers.
 export function add(a /*: Rat */, b /*: Rat */) /*: Rat */ {
     const num = a.num * b.denom + b.num * a.denom;
@@ -227,7 +233,11 @@ export function approx(value /*: Rat */, denom /*: Int */) {
     const limit = {num: 1, denom: denom};
 
     // Convert to proper fraction so that the num is always < denom.
-    const proper = toProper(value);
+    const proper = toProper(promote(value));
+
+    if (typeof(denom) !== "number" || (denom !== Math.floor(denom))) {
+	throw new Error(`${denom} is not an integer`);
+    }
 
     // Find the best approximation.
 

@@ -292,18 +292,17 @@ export function app(element) {
     );
 
     const frac = layout(
-	"f2  f4   f8      f16",
- 	".   .    approx simplify",
-	".   finv .       . ",
-	"=   fdiv fmul    fsub ",
-	"7   8    9       fadd ",
-	"7   8    9       fadd ",
-	"4   5    6       fadd ",
-	"4   5    6       fadd ",
-	"1   2    3       frac ",
-	"1   2    3       frac ",
-	"0   0    denom   frac ",
-	"0   0    dec     frac ",
+	"f2    f4   f8      f16",
+ 	"float finv approx  frac",
+	"=     fdiv fmul    fsub ",
+	"7     8    9       fadd ",
+	"7     8    9       fadd ",
+	"4     5    6       fadd ",
+	"4     5    6       fadd ",
+	"1     2    3       #",
+	"1     2    3       #",
+	"0     0    dec     #",
+	"0     0    dec     #",
     );
 
     const a = layout(
