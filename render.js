@@ -26,6 +26,26 @@ export function el(name, attrs, ...children) {
 }
 
 
+// namespaced version of above
+export const ns = (namespace) => (name, attrs, ...children) => {
+    const ret = document.createElementNS(namespace, name);
+
+    for (let key in attrs) {
+	ret.setAttribute(key, attrs[key]);
+    }
+
+    for (let child of children) {
+	if (typeof child === "string") {
+	    ret.appendChild(document.createTextNode(child));
+	} else {
+	    ret.appendChild(child);
+	}
+    }
+
+    return ret;
+}
+
+
 // standard elements
 export const div    = (a, ...c)  => el("div",    a, ...c);
 export const span   = (a, ...c)  => el("span",   a, ...c);
@@ -45,6 +65,34 @@ export const container = (id, name, ...content) => div(
 
 // Render a key / value pair to a string
 export const pair = (key, value) => `${key}: ${value}`;
+
+
+// MathML helpers
+export const mathml = ns("http://www.w3.org/1998/Math/MathML");
+
+export const math  = (...c) => mathml("math",  {}, ...c);
+export const mfrac = (...c) => mathml("mfrac", {}, ...c);
+export const mrow  = (...c) => mathml("mrow",  {}, ...c);
+export const mi    = (...c) => mathml("mi",    {}, ...c);
+export const mo    = (...c) => mathml("mo",    {}, ...c);
+export const mn    = (...c) => mathml("mn",    {}, ...c);
+
+function mitem(...items) {
+    function mapitem (item) {
+	switch (typeof(item)) {
+	case "number": return mn(item.toString());
+	case "string": return mi(item);
+	}
+    }
+    
+    if (items.length === 1) {
+	return mapitem(items[0]);
+    } else {
+	return mrow(items.map(mapitem));
+    }
+}
+
+export const fraction = (num, denom) => mfrac(mitem(num), mitem(denom));
 
 
 // A group of items representing a mutually-exclusive choice.

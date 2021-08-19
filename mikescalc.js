@@ -18,7 +18,9 @@ import {
     container,
     pair,
     radioGroup,
-    monkeyPatch
+    monkeyPatch,
+    math,
+    fraction,
 } from './render.js';
 
 import * as rat from './rat.js';
@@ -40,7 +42,26 @@ const symbols = {
     sqrt: "\u{221A}",
     E:    "\u{1D486}",
     PI:   "\u{1D70B}",
+
+    frac: "fraction",
+    fadd: "+",
+    fsub: "-",
+    fmul: "⨉",
+    fdiv: "÷",
+    f2:   "\u{0031}\u{2044}\u{0032}",
+    f4:   "\u{0031}\u{2044}\u{0034}",
+    f8:   "\u{0031}\u{2044}\u{0038}",
+    f16:   "\u{0031}\u{2044}\u{0031}\u{0036}",
+    denom: math(fraction("x", "y"))
 };
+
+function display(value) {
+    if (typeof(value) === "number") {
+	return div({}, value.toString());
+    } else {
+	return div({}, math(fraction(value.num, value.denom)));
+    }
+}
 
 
 /*** Application entry point *************************************************/
@@ -109,10 +130,8 @@ export function app(element) {
 	append(container(
 	    "stack-container",
 	    "Stack",
-	    ...reversed(calc.stack).map((value) => typeof value === "number"
-					? div({}, value.toString())
-					: div({}, rat.toString(value)))
-	));
+	    ...reversed(calc.stack).map(display)
+	))
 
 	// Render the variables. Clicking a variable places it onto the stack.
 	append(
