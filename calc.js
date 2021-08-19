@@ -15,6 +15,9 @@ import {
 } from './fp.js';
 
 
+import * as rat from './rat.js';
+
+
 /*** Calculator business logic ********************************************/
 
 
@@ -54,12 +57,13 @@ function builtin(arity, func) {
 const constant = (c) => builtin(0, () => c);
 
 
-// Define the builtin functions of the calculator.
-//
-// Match each function to a symbolic name.
-//
-// For now we just expose all the properties of the Math module, which
-// means all operations are on 64-bit floats.
+// Placeholder for unimplemented functions.
+const unimplemented = (n, name) => builtin(0, () => {
+    throw new Error(`${name} is not yet implemented.`);
+});
+
+
+// Dispatch table for floating-point calculations.
 //
 // The good news is that if we want to support exact decimal
 // calculations, complex numbers, quaternions, vectors, or arbitrary
@@ -74,6 +78,22 @@ export const builtins = {
     mul:     builtin(2, (x, y) => x * y),
     div:     builtin(2, (x, y) => x / y),
     square:  builtin(1, (x) => x * x),
+
+    frac:    builtin(1, (x) => rat.fromFloat(x)),
+    denom:   builtin(1, (x) => rat.inv(rat.fromFloat(x))),
+    simplify: builtin(1, rat.simplify),
+    approx:  builtin(2, rat.approx),
+    f2:      builtin(0, () => ({num: 1, denom: 2})),
+    f4:      builtin(0, () => ({num: 1, denom: 4})),
+    f8:      builtin(0, () => ({num: 1, denom: 8})),
+    f16:     builtin(0, () => ({num: 1, denom: 16})),
+    fadd:    builtin(2, rat.add),
+    fsub:    builtin(2, rat.sub),
+    fmul:    builtin(2, rat.mul),
+    fdiv:    builtin(2, rat.div),
+    finv:    builtin(1, rat.inv),
+
+
     abs:     builtin(1, Math.abs),
     acos:    builtin(1, Math.acos),
     asin:    builtin(1, Math.asin),

@@ -21,6 +21,8 @@ import {
     monkeyPatch
 } from './render.js';
 
+import * as rat from './rat.js';
+
 
 monkeyPatch();
 
@@ -107,7 +109,9 @@ export function app(element) {
 	append(container(
 	    "stack-container",
 	    "Stack",
-	    ...reversed(calc.stack).map((value) => div({}, value.toString()))
+	    ...reversed(calc.stack).map((value) => typeof value === "number"
+					? div({}, value.toString())
+					: div({}, rat.toString(value)))
 	));
 
 	// Render the variables. Clicking a variable places it onto the stack.
@@ -257,6 +261,21 @@ export function app(element) {
 	"0   0    dec     #    ",
     );
 
+    const frac = layout(
+	"f2  f4   f8      f16",
+ 	".   .    approx simplify",
+	".   finv .       . ",
+	"=   fdiv fmul    fsub ",
+	"7   8    9       fadd ",
+	"7   8    9       fadd ",
+	"4   5    6       fadd ",
+	"4   5    6       fadd ",
+	"1   2    3       frac ",
+	"1   2    3       frac ",
+	"0   0    denom   frac ",
+	"0   0    dec     frac ",
+    );
+
     const a = layout(
 	"1 2 3 4 5 6 7 8 9 0",
 	"q w e r t y u i o p",
@@ -275,17 +294,18 @@ export function app(element) {
     
     // Layout consisting of all available functions.
     const fn = layout(
-        "abs   acos   asin  atan atan2",
-        "ceil  clz32  cos   exp  floor",
-        "imul  fround log   max  min  ",
-	"pow   random round sin  square",
-	"sqrt  tan    log10 log2 log1p",
-	"expm1 cosh   sinh  tanh acosh",
-	"asinh atanh  hypot sign cbrt"
+        "abs   acos   asin  atan   atan2",
+        "ceil  clz32  cos   exp    floor",
+        "imul  fround log   max    min  ",
+	"pow   random round sin    square",
+	"sqrt  tan    log10 log2   log1p",
+	"expm1 cosh   sinh  tanh   acosh",
+	"asinh atanh  hypot sign   cbrt",
+	"frac  num    denom approx ."
     );
 
     // These are the standard layouts
-    const layouts = {basic, scientific, a, A, fn};
+    const layouts = {basic, scientific, frac, a, A, fn};
 
     /* Keyboard input *******************************************************/
 
