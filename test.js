@@ -253,7 +253,6 @@ test("floating point decomposition", () => {
 });
 
 test("floating composition and decomposition are consistent", () => {
-    // Test equivalency of fp composition and decomposition.
     assertEq(rat.ldexp(rat.frexp(4)),         4);
     assertEq(rat.ldexp(rat.frexp(0.125)), 0.125);
     assertEq(rat.ldexp(rat.frexp(125)),     125);
@@ -264,7 +263,6 @@ test("floating composition and decomposition are consistent", () => {
 });
 
 test("euclid's algorithm for gcd", () => {
-    // Test that euclid's algorithm works.
     assertEq(rat.gcd(1, 1),  1);
     assertEq(rat.gcd(2, 1),  1);
     assertEq(rat.gcd(4, 8),  4);
@@ -273,7 +271,6 @@ test("euclid's algorithm for gcd", () => {
 });
 
 test("we can simplify fractions", () => {
-    // Test that simplification works
     assertEq(
 	rat.simplify({num: 4, denom: 12}),
 	{num: 1, denom: 3}
@@ -281,7 +278,6 @@ test("we can simplify fractions", () => {
 });
 
 test("we can convert between improper and proper fractions", () => {
-    // Test to / from proper fractions.
     assertEq(
 	rat.toProper({num: 5, denom: 4}),
 	{integer: 1, num: 1, denom: 4}
@@ -294,7 +290,6 @@ test("we can convert between improper and proper fractions", () => {
 });
 
 test("we can convert between fractions and strings", () => {
-    // Test to / from strings
     assertEq(
 	rat.toString({num: 1, denom: 4}),
 	"1/4"
@@ -307,7 +302,6 @@ test("we can convert between fractions and strings", () => {
 });
 
 test("we can convert between rationals and floats", () => {
-
     assertEq(
 	rat.toFloat({num: 1, denom: 4}),
 	0.25
