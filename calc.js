@@ -1,10 +1,52 @@
 "use strict";
 
-// I used the latest ES6 features to write this in a "functional"
-// style.
+// I used the latest ES6 features to make this project a case-study in
+// Functional Programming.
 //
-// You could think of this as an exploration of functional programming
-// using javascript.
+// This module defines ADTs for the calculator's state. The UX
+// layer renders the resulting state. 
+//
+// The idea is that a calculator is just a DFA you manually supply
+// with tokens. I realized that, since we are operating at human input
+// speed, we can be a little bit wasteful with the representation of
+// the calculator's internal state, in exchange for some useful
+// features like error tolerance and unlimited undo / redo.
+//
+// With every user action, the entire calculator state and UI is
+// regenerated, rather than mutated in place. But this affords
+// preserving any prior states in the undo stack, which means that the
+// user need not fear a misplaced finger. The stack and history are
+// visible, so that the input can be audited for error, and errors can
+// be easily corrected.
+//
+// That all sounds like a lot, so to further distill it: the whole
+// thing is a set of pure functions which operate on
+// plain-old-javascript objects (POJOS), with the "heavy lifting"
+// implemented in `fp.js`.
+//
+// Things I want to get to:
+// - add tokens for the following stack ops:
+//   - exch (should somehow support DnD)
+//   - del
+//   - ins
+// - add token to clear variable binding
+// - tape editor mode
+//   - reorder / edit / insert new tokens
+//     - history is re-calculated, including intermediate stack results
+//   - extract selected tokens to function
+//   - replace constant with variable
+//     - binds first appearance of constant to a name, then
+//     - replaces other uses with variable reference, as directed by user
+//   - delete token
+//   - insert token
+//     - challenging because of keypads.
+//     - could be implemented as a kind of implicit "tape cursor", so affecting next token.
+//     - potentially confusing if the tape is not always visible, which is hard to fit on mobile
+// - "function editor"
+//  - looks just like tape editor, but
+//    - only available when top of stack is a function value.
+//    - plus the additional feature of "replace constant with function parameter".
+//    - plus the additional "params" pane, which has to share real-estate with the "vars" pane.
 
 import {
     debug,
@@ -58,20 +100,15 @@ const constant = (c) => builtin(0, () => c);
 
 
 // Placeholder for unimplemented functions.
+//
+// Ideally, no usage of this ever gets committed, but it is useful
+// when developing new features, so keep it here.
 const unimplemented = (n, name) => builtin(0, () => {
     throw new Error(`${name} is not yet implemented.`);
 });
 
 
-// Dispatch table for floating-point calculations.
-//
-// The good news is that if we want to support exact decimal
-// calculations, complex numbers, quaternions, vectors, or arbitrary
-// precision, we just need to supply an alternative implementation for
-// the functions in this table.
-//
-// TBD: Associate a unicode symbol or image for each function, which
-// will be used as the button icon for onscreen use.
+// Dispatch table for stack operations.
 export const builtins = {
     add:     builtin(2, (x, y) => x + y),
     sub:     builtin(2, (x, y) => x - y),
@@ -149,37 +186,43 @@ export const constants = {
 
 // A type representing the calculator's input accumulator.
 //
-// It is just the usual methods for parsing base 10 values, but
-// expressed in a stateless fashion. Another way you can think of it
-// is that this is really a simple "lexer" monad.
+// The job of the accumulator is to receive tokens, assembling them
+// into values.
 //
-// The accumulator starts out empty.
-// If the first character is a digit, accumulator is in decimal mode.
-// If the first character is a decimal, accumulator is in float mode.
-// If the first character is a letter, accumulator is in word mode.
+// It also represents the "modal" layer of user interaction, as token
+// sequences are essentially a path through the state graph. What
+// incomming tokens are valid at any given moment depends on what
+// tokens have already been received, from the empty state.
 //
-// Subsequent chars are then accepted or rejected based on the mode,
-// until it is cleared, via clear().
+// This is basically the FP equivalent of "grovelling through
+// characters" sequentially. Modeling it this way lets me capture the
+// state of the accumulator at any point, which means that undo/redo
+// can operate at the token level.
 //
-// TBD: function mode
+// We can support all kinds of interesting ux behavior using this
+// structure. Whereas stack operations are always orthogonal,
+// accumulator tokens are modal and path-dependent.
 export const accumulator = (function () {
+    // The empty accumulator singleton.
     const empty = {type: "empty"};
+
+    // Helper function to fold a single digit into a register
+    const fold_digit = (reg, d) => reg * 10 + d;
+
+    /* Input tokens */
 
     // Clear the accumulator state.
     function clear(state) { return empty; };
-
-    // Fold a single digit into accumulator
-    const fold_digit = (state, d) => state * 10 + d;
 
     // Handle an incoming digit
     function digit(state, d) { switch (state.type) {
 	case "empty": return {type: "dec",   dec: d};
 	case "dec":   return {type: "dec",   dec: fold_digit(state.dec, d)};
 	case "float": return {type: "float", frac: fold_digit(state.frac, d), dec: state.dec};
-	case "var":   return {type: "var",  id: state.id + d.toString()};
+	case "var":   return {type: "var",   id: state.id + d.toString()};
     }; }
 
-    // Handle the decimal point.
+    // Handle incomming decimal point.
     function decimal(state) { switch (state.type) {
 	case "empty": return {type: "float", dec: 0, frac: 0};
 	case "dec":   return {type: "float", dec: state.dec, frac: 0};
@@ -195,7 +238,12 @@ export const accumulator = (function () {
 	case "var":   return {type: "var", id: state.id + l};
     }; }
 
-    // Return the current value of the accumulator.
+    /* Queries on Accumulator State */
+
+    // Return the current value of the accumulator, if possible.
+    //
+    // This might throw, because the accumulator state might not
+    // represent a meaningful value.
     function value(state) { switch (state.type) {
 	case "empty": throw "Empty Accumulator";
 	case "dec":   return state.dec;
@@ -203,8 +251,7 @@ export const accumulator = (function () {
 	case "var":   return state.id;
     }; }
 
-    // Return the current display value. Similar to above, but
-    // returned as a string.
+    // Return the current "display contents" of the accumulator.
     function display(state, defs) { switch (state.type) {
 	case "empty": return "";
 	case "dec":   return state.dec.toString();
@@ -225,10 +272,45 @@ export const accumulator = (function () {
 })();
 
 
-// Represents the entire calculator state, including:
-// - stack
-// - input stream
-// - current definitions
+// Represents the entire calculator state, which is a stack machine.
+//
+// The calculator receives tokens, some of which are delegated to the
+// accumulator, while others represent stack operations.
+//
+// The state consists of:
+// - current set of valid stack functions, indexed by their symbolic name (ops)
+// - current stack contents
+// - history of input tokens (tape)
+// - current bound variables (defs)
+// - current accumulator state
+// - current mode of operation ("showing")
+//
+// TBD: look into merging the keypad-layout with `ops` and `showing`
+// stuff here. The original goal was for `ops` to be updated based on
+// stack contents, such that the ux could suppress or"grey out"
+// operations that are not present in `ops`.
+//
+// It might make *more* sense if the calculator generates the abstract
+// key layout and function mapping. Different UI layers could use this
+// as hints, and it would completely decouple the ux layer from
+// calculator internals, since at that point it has everything it
+// needs in the calculator's public state.
+//
+// TBD: should errors be stored here. I.e., if a stack operation
+// results in an error being thrown, do we catch it and attach it to
+// the current state, so that the ux can then render it? The problem
+// here is that if `undoable` receives a value, then it will enter the
+// history. So errors really need to be handled by `undoable`. But
+// this then makes `undoable` a lot less general than one would wish.
+//
+// The behavior I would ideally want is that genuine user errors get a
+// visual representation in the sucessor state, but do not enter the
+// history. I.e."nothing happens, except that now there's a visible
+// explanation for why nothing happened". This behavior could also be
+// implemented in `reactor`. Internal errors should just present a
+// clear stack trace on the console. There whole design is such that
+// there is no harm in failing to catch these exceptions, and quite
+// the opposite, I would prefer to see the stack trace.
 export const calculator = (function () {
     const init = {
 	ops: builtins,

@@ -80,6 +80,32 @@ export const hoist_props = (slot, module) => module.properties.map(
 // Make the underlying type "undoable".
 //
 // Factor out history management from business logic.
+//
+// I've never had a calculator with an "undo" feature before.  I've
+// implemented "undo/redo" before, in different ways. This
+// implementation is by far the simplest, and most robust I've yet
+// managed, though it works by keeping complete copies of previous
+// states. Some sort of caching machinery would be involved if your
+// state type is large.
+//
+// Essentially, an RPN calculator is such a trivial state machine
+// compared to the raw power of even a smart phone, that we can afford
+// to keep a log of every action and prior state for a given session.
+//
+// This might prove problematic with persistent storage, and some care
+// should be put in to the UX around saving / loading / expiring
+// history. There's a convenience factor for having the histiory be
+// persistent, but that has to be balanced against privacy and storage
+// concerns
+//
+// What is lacking here is a coherent strategy for handling errors.
+//  - only catch "UserError" or some given error subclass from here.
+//  - set error field on resulting state
+//  - should not prevent further input
+//  - if last operation was UserError error, should not mutate undo or redo stack.
+//  - subsequent valid operation should clear error field.
+//  - other unhandled exceptions propagate up the stack.
+
 export function undoable({init, methods, properties}) {
     // Each method in `methods` will be wrapped with this function.
     //
