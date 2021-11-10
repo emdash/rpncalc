@@ -59,7 +59,9 @@ const symbols = {
 };
 
 function display(value) {
-    if (typeof(value) === "number") {
+    if (symbols[value] !== undefined) {
+	return symbols[value];
+    } else if (typeof(value) === "number") {
 	return div({}, value.toString());
     } else {
 	const {integer, num, denom} = rat.toProper(value);
@@ -168,8 +170,11 @@ export function app(element) {
 	    // In keyboard mode, there is no onscreen keyboard.
 	    //
 	    // We use the space to show the tape.	
-	    const tape = calc.tape.map((val) => div({}, symbols[val] || val.toString()));
-	    append(container("tape-container", "Tape", ...tape))
+	    append(container(
+		"tape-container",
+		"Tape",
+		...calc.tape.map(display)
+	    ));
 	} else {
 	    // Otherwise, render the keypad appropriate for the mode
 	    // we've entered.
@@ -214,18 +219,19 @@ export function app(element) {
     // Table of functions which are special-case for one reason or
     // another.
     const specials = {
-	swap: {name: "swap",  label: symbols["exch"],  func: () => state.exch(-1, -2)},
-	clr:  {name: "clr",   label: "clr",   func: state.clear},
-	rst:  {name: "rst",   label: "rst",   func: state.reset},
-	dec:  {name: "dec",   label: ".",     func: state.decimal},
-	undo: {name: "undo",  label: "undo",  func: state.undo},
-	redo: {name: "redo",  label: "redo",  func: state.redo},
-	"=":  {name: "store", label: "=",     func: state.store},
-	"#":  {name: "enter", label: "enter", func: state.enter},
-	"+":  operator("add"),
-	"-":  operator("sub"),
-	"*":  operator("mul"),
-	"/":  operator("div"),
+	swap:  {name: "swap",  label: symbols["exch"],  func: () => state.exch(-1, -2)},
+	slash: {name: "slash", label: "/",     func: state.slash},
+	clr:   {name: "clr",   label: "clr",   func: state.clear},
+	rst:   {name: "rst",   label: "rst",   func: state.reset},
+	dec:   {name: "dec",   label: ".",     func: state.decimal},
+	undo:  {name: "undo",  label: "undo",  func: state.undo},
+	redo:  {name: "redo",  label: "redo",  func: state.redo},
+	"=":   {name: "store", label: "=",     func: state.store},
+	"#":   {name: "enter", label: "enter", func: state.enter},
+	"+":   operator("add"),
+	"-":   operator("sub"),
+	"*":   operator("mul"),
+	"/":   operator("div"),
     };
 
     // Return the layout entry for a token in our layout dsl.
@@ -303,8 +309,8 @@ export function app(element) {
 	"4     5    6       fadd ",
 	"1     2    3       #",
 	"1     2    3       #",
-	"0     0    dec     #",
-	"0     0    dec     swap",
+	"0     0    slash   #",
+	"0     0    slash   swap",
     );
 
     const a = layout(

@@ -166,6 +166,54 @@ test("accumulator can produce values", () => {
     );
 });
 
+test("accumulator handles fraction slash correctly", () => {
+    assertThrows(
+	() => accumulator.slash(),
+	"Illegal: empty numerator."
+    );
+
+    assertThrows(
+	() => accumulator.digit(4).slash().decimal(),
+	"Illegal: decimal point in fraction."
+    );
+
+    assertThrows(
+	() => accumulator.digit(4).slash().digit(5).decimal(),
+	"Illegal: decimal point in fraction."
+    );
+    assertThrows(
+	() => accumulator.digit(4).decimal().slash(),
+	"Illegal: fraction bar in float."
+    );
+
+    assertThrows(
+	() => accumulator.letter('x').slash(),
+	"Illegal: fraction bar in identifier."
+    );
+
+    assertThrows(
+	() => accumulator.digit(3).slash().slash(),
+	"Illegal: already in numerator."
+    );
+
+    assertThrows(
+	() => accumulator.digit(3).slash().digit(4).slash(),
+	"Illegal: already in numerator."
+    );
+});
+
+test("accumulator can produce fractions", () => {
+    assertEq(
+	accumulator.digit(3).slash().digit(4).value(),
+	{num: 3, denom: 4}
+    );
+
+    assertEq(
+	accumulator.digit(3).digit(4).slash().digit(5).digit(6).value(),
+	{num: 34, denom: 56}
+    );
+});
+
 test("calculator is initalized correctly", () => {
     assertEq(
 	calculator,

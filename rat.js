@@ -55,6 +55,11 @@ export function ldexp({exponent, mantissa}) {
     return mantissa * 2 ** exponent;
 }
 
+function assertInt(value) {
+    if (value !== parseInt(value)) {
+	throw new Error("value must be an integer!");
+    }
+}
 
 // euclid's algorithm for finding greatest common divider.
 export function gcd(a /*: int */, b /* :int */) /*: int */ {
@@ -76,6 +81,8 @@ export const one = {num: 1, denom: 1};
 
 // Reduce r to lowest terms.
 export function simplify(r /*: Rat*/) /* : Rat */ {
+    assertInt(r.num);
+    assertInt(r.denom);
     const g = gcd(Math.abs(r.num), Math.abs(r.denom));
     const num = r.num / g;
     const denom = r.denom / g;
