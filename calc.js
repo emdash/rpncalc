@@ -26,7 +26,6 @@
 //
 // Things I want to get to:
 // - add tokens for the following stack ops:
-//   - exch (should somehow support DnD)
 //   - del
 //   - ins
 // - add token to clear variable binding
@@ -348,6 +347,37 @@ export const calculator = (function () {
 	    return state;
 	}
     }
+    
+    // Implement the family exchange (AKA swap) operations.
+    //
+    // Negative indices are used for indexing from the top of the
+    // stack, positive indices are absolute from the bottom of the
+    // stack.
+    function exch(state, a, b) {
+	state = enter(state);
+	
+	a = (a < 0) ? state.stack.length + a : a;
+	b = (b < 0) ? state.stack.length + b : b;
+
+	if (Math.max(a, b) > state.stack.length) {
+	    throw "Illegal: Invalid stack indices";
+	}
+
+	if (Math.min(a, b) < 0) {
+	    throw "Illegal: Invalid stack indices";
+	}
+
+	const val_a = state.stack[a],
+	      val_b = state.stack[b];
+
+	const tape = [...state.tape, `exch(${a}, ${b})`];
+
+	let stack = [...state.stack];
+	stack[a] = val_b;
+	stack[b] = val_a;
+	
+	return {...state, stack, tape};
+    }
 
     // apply operator to stack
     function operator(state, operator) {
@@ -419,6 +449,7 @@ export const calculator = (function () {
 	    reset,
 	    push,
 	    enter,
+	    exch,
 	    store,
 	    operator,
 	    show,

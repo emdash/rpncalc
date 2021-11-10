@@ -33,6 +33,7 @@ monkeyPatch();
 
 // Table of unicode symbols for operators that have an obvious choice.
 const symbols = {
+    exch: "\u{2B0D}",
     add:  "+",
     sub:  "-",
     mul:  "⨉",
@@ -213,6 +214,7 @@ export function app(element) {
     // Table of functions which are special-case for one reason or
     // another.
     const specials = {
+	swap: {name: "swap",  label: symbols["exch"],  func: () => state.exch(-1, -2)},
 	clr:  {name: "clr",   label: "clr",   func: state.clear},
 	rst:  {name: "rst",   label: "rst",   func: state.reset},
 	dec:  {name: "dec",   label: ".",     func: state.decimal},
@@ -273,7 +275,7 @@ export function app(element) {
 	"7   8   9    +",
 	"4   5   6    +",
 	"1   2   3    #",
-	"0   0   dec  #",
+	"0   0   dec  swap",
     );
 
     const scientific = layout(
@@ -288,7 +290,7 @@ export function app(element) {
 	"1   2    3       #    ",
 	"1   2    3       #    ",
 	"0   0    dec     #    ",
-	"0   0    dec     #    ",
+	"0   0    dec     swap ",
     );
 
     const frac = layout(
@@ -302,7 +304,7 @@ export function app(element) {
 	"1     2    3       #",
 	"1     2    3       #",
 	"0     0    dec     #",
-	"0     0    dec     #",
+	"0     0    dec     swap",
     );
 
     const a = layout(
@@ -323,14 +325,13 @@ export function app(element) {
     
     // Layout consisting of all available functions.
     const fn = layout(
-        "abs   acos   asin  atan   atan2",
-        "ceil  clz32  cos   exp    floor",
-        "imul  fround log   max    min  ",
-	"pow   random round sin    square",
-	"sqrt  tan    log10 log2   log1p",
-	"expm1 cosh   sinh  tanh   acosh",
-	"asinh atanh  hypot sign   cbrt",
-	"frac  num    denom approx ."
+        "abs    acos   acosh approx asin  asinh",
+	"atan   atan2  atanh cbrt   ceil  clz32",
+	"cos    cosh   denom exp    expm1 floor",
+	"frac   fround hypot imul   log   log10",
+	"log2   log1p  max   min    num   pow",
+	"random round  sin   sinh  square sqrt",
+	"swap   tan   tanh   .     .      .",
     );
 
     // These are the standard layouts

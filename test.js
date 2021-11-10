@@ -33,7 +33,7 @@ function assertEq(a, b) {
 	  repr_b = JSON.stringify(b);
 
     if (repr_a !== repr_b) {
-	throw new Exception(`Assertion failed: \n${repr_a}\n!==\n${repr_b}`);
+	throw new Error(`Assertion failed: \n${repr_a}\n!==\n${repr_b}`);
     }
 }
 
@@ -234,6 +234,47 @@ test("calculator can perform operations", () => {
 	    ops: calc.builtins,
 	    stack: [15],
 	    tape: [10, 5, "add"],
+	    defs: calc.constants,
+	    accum: accumulator,
+	    showing: "basic"
+	}
+    );
+});
+
+test("calculator can swap values at stack positions", () => {
+    assertEq(
+	calculator
+	    .digit(4)
+	    .enter()
+	    .digit(5)
+	    .exch(1, 0),
+	{
+	    ops:calc.builtins,
+	    stack: [5, 4],
+	    tape: [4, 5, "exch(1, 0)"],
+	    defs: calc.constants,
+	    accum: accumulator,
+	    showing: "basic"
+	}
+    );
+
+    assertThrows(
+	() => calculator.exch(1, 0),
+	"Illegal: Invalid stack indices"
+    );
+    
+    assertEq(
+	calculator
+	    .digit(4)
+	    .enter()
+	    .digit(5)
+	    .enter()
+	    .exch(-1, -2)
+	    .operator("sub"),
+	{
+	    ops: calc.builtins,
+	    stack: [1],
+	    tape: [4, 5, "exch(1, 0)", "sub"],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
