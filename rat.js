@@ -19,13 +19,22 @@ function bytesToFloat64LE(bytes) {
     return view.getFloat64(0, true);
 }
 
+// Handle a fractional mantissa.
+function normalize(exponent, mantissa) {
+    if (!isInt(mantissa)) {
+	return normalize(exponent - 1, mantissa * 2);
+    } else {
+	return {exponent, mantissa};
+    }
+}
+
 // return the exponent and mantissa of a Number.
 //
 // based on:
 // https://stackoverflow.com/questions/9383593/extracting-the-exponent-and-mantissa-of-a-javascript-number
 //
 // XXX: use builtin alternatives if any are available.
-export function frexp(x /*: Number */) /* : {exponent: int, mantissa: Number} */ {
+export function frexp(x /*: Number */) /* : {exponent: int, mantissa: int} */ {
     const bytes = float64ToBytesLE(x);
 
     // Extract the 11-bit exponent from the most-significant bytes
@@ -46,8 +55,10 @@ export function frexp(x /*: Number */) /* : {exponent: int, mantissa: Number} */
 	0xf0 | exp_low,
 	0b00111111,
     ]));
-    
-    return {exponent, mantissa};
+
+    // The mantissa might still contain a fractional part, so may need
+    // to adjust the final value.
+    return normalize(exponent, mantissa);
 }
 
 
@@ -55,10 +66,14 @@ export function ldexp({exponent, mantissa}) {
     return mantissa * 2 ** exponent;
 }
 
+
+const isInt = (value) => value === parseInt(value);
+
 function assertInt(value) {
-    if (value !== parseInt(value)) {
-	throw new Error("value must be an integer!");
+    if (!isInt(value)) {
+	throw new Error(`${value} is not an integer!`);
     }
+    return value;
 }
 
 // euclid's algorithm for finding greatest common divider.
@@ -114,7 +129,6 @@ export function fromProper(value /*: Proper */) /*: Rat */ {
 // This will render a value as a proper fraction.
 export function toString(value /*: Proper | Rat */) /* : string */ {
     const proper = (value.int !== undefined) ? value : toProper(value);
-
     if (proper.integer === 0) {
 	return `${proper.num}/${proper.denom}`;
     } else {
@@ -146,20 +160,15 @@ export function fromFloat(value /*: Number*/) /*: Rat */ {
     // Get the exponent and mantissa
     let {exponent, mantissa} = frexp(value);
 
-    if (exponent > 0) {
-	// If we are left with a positive exponent, then we have
-	// an integer value and the numerator is simply 1.
+    if (exponent >= 0) {
 	return {
-	    num: mantissa * (1 << exponent),
+	    num: assertInt(mantissa * (1 << exponent)),
 	    denom: 1
 	};
     } else {
-	// If the exponent is negative, then we have a true
-	// fraction, with the denominator being derived directly
-	// from the exponent.
 	return simplify({
-	    num: mantissa,
-	    denom: 1 << -exponent
+	    num: assertInt(mantissa),
+	    denom: assertInt(2 ** -exponent)
 	});
     }
 }
@@ -268,7 +277,7 @@ export function approx(value /*: Rat */, denom /*: Int */) {
 	}
     }
 
-    return {num: proper.integer * denom + num, denom};
+    return simplify({num: proper.integer * denom + num, denom});
 }
 
 
