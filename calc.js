@@ -357,7 +357,7 @@ export const calculator = (function () {
 	return {...state, stack, tape};
     }
 
-    // transfer accumulator to stack.
+    // Transfer valid accumulator to stack.
     //
     // this will clear the accumulator.
     function enter(state) {
@@ -369,57 +369,55 @@ export const calculator = (function () {
 	    return state;
 	}
     }
+
+    // Factor out auto-enter logic into this combinator.
+    const auto_enter = (f) => (state, ...rest) => f(enter(state), ...rest);
     
     // Implement the family exchange (AKA swap) operations.
     //
     // Negative indices are used for indexing from the top of the
     // stack, positive indices are absolute from the bottom of the
     // stack.
-    function exch(state, a, b) {
-	state = enter(state);
-	
-	a = (a < 0) ? state.stack.length + a : a;
-	b = (b < 0) ? state.stack.length + b : b;
+    const exch = auto_enter((state, a, b) => {
+	const A = (a < 0) ? state.stack.length + a : a;
+	const B = (b < 0) ? state.stack.length + b : b;
 
-	if (Math.max(a, b) > state.stack.length) {
+	if (Math.max(A, B) > state.stack.length) {
 	    throw "Illegal: Invalid stack indices";
 	}
 
-	if (Math.min(a, b) < 0) {
+	if (Math.min(A, B) < 0) {
 	    throw "Illegal: Invalid stack indices";
 	}
 
-	const val_a = state.stack[a],
-	      val_b = state.stack[b];
+	const val_a = state.stack[A],
+	      val_b = state.stack[B];
 
-	const tape = [...state.tape, `exch(${a}, ${b})`];
+	const tape = [...state.tape, `exch(${A}, ${B})`];
 
 	let stack = [...state.stack];
-	stack[a] = val_b;
-	stack[b] = val_a;
+	stack[A] = val_b;
+	stack[B] = val_a;
 	
 	return {...state, stack, tape};
-    }
+    });
 
     // apply operator to stack
-    function operator(state, operator) {
-	// Ensure accumulator contents are transfered to stack.
-	const auto_enter = enter(state);
-
+    const operator = auto_enter((state, operator) => {
 	assert(
-	    accumulator.properties.isEmpty(auto_enter.accum),
+	    accumulator.properties.isEmpty(state.accum),
 	    "Accumulator must be empty."
 	);
 
 	assert(
-	    operator in auto_enter.ops,
+	    operator in state.ops,
 	    "Illegal Operator: ${operator}."
 	);
 
-	const stack = auto_enter.ops[operator](auto_enter.stack);
-	const tape = [...auto_enter.tape, operator];
-	return {...auto_enter, stack, tape};
-    }
+	const stack = state.ops[operator](state.stack);
+	const tape = [...state.tape, operator];
+	return {...state, stack, tape};
+    });
 
     // Reset the calculator to initial conditions.
     function reset(state) {
@@ -439,21 +437,20 @@ export const calculator = (function () {
     }
 
     // Store top of stack into slot
-    function store(state) {
-	let auto_enter = enter(state);
-	const length = auto_enter.stack.length;
+    const store = auto_enter((state) => {
+	const length = state.stack.length;
 	const pivot = length - 2;
 
 	if (length >= 2) {
-	    const [value, slot] = auto_enter.stack.slice(pivot);
-	    const stack = auto_enter.stack.slice(0, pivot);
-	    const defs = {...auto_enter.defs, [slot]: value};
-	    const tape = [...auto_enter.tape, "="];
-	    return {...auto_enter, stack, defs, tape};
+	    const [value, slot] = state.stack.slice(pivot);
+	    const stack = state.stack.slice(0, pivot);
+	    const defs = {...state.defs, [slot]: value};
+	    const tape = [...state.tape, "="];
+	    return {...state, stack, defs, tape};
 	} else {
 	    return state;
 	}
-    }
+    });
 
     // A bit of a wart: UI state is controlled here.
     function show(state, showing) {
