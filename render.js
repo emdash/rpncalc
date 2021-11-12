@@ -1,5 +1,7 @@
 "use strict";
 
+import {debug} from './fp.js';
+
 
 /*** rendering helpers *****************************************************/
 
@@ -83,17 +85,17 @@ function mitem(...items) {
 	case "number": return mn(item.toString());
 	case "string": return mi(item);
 	}
+	return item;
     }
     
     if (items.length === 1) {
 	return mapitem(items[0]);
     } else {
-	return mrow(items.map(mapitem));
+	return mrow(...items.map(mapitem));
     }
 }
 
 export const fraction = (num, denom) => mfrac(mitem(num), mitem(denom));
-
 
 // A group of items representing a mutually-exclusive choice.
 //

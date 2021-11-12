@@ -217,41 +217,59 @@ export const accumulator = (function () {
     function clear(state) { return empty; };
 
     // Handle an incoming digit
-    function digit(state, d) { switch (state.type) {
-	case "empty": return {type: "dec",   dec: d};
-	case "dec":   return {type: "dec",   dec: fold_digit(state.dec, d)};
-	case "float": return {type: "float", frac: fold_digit(state.frac, d), dec: state.dec};
-	case "var":   return {type: "var",   id: state.id + d.toString()};
-	case "num":   return {type: "denom", num: state.num, denom: d};
-	case "denom": return {type: "denom", num: state.num, denom: fold_digit(state.denom, d)};
+    function digit({type, val}, d) { switch (type) {
+	case "empty": return {type: "dec",   val: d};
+	case "dec":   return {type: "dec",   val: fold_digit(val, d)};
+	case "float": return {type: "float", val: {...val, frac: fold_digit(val.frac, d)}};
+	case "var":   return {type: "var",   val: val + d.toString()};
+	case "num":   return {type: "num",   val: {...val, num: fold_digit(val.num, d)}};
+	case "denom": return {type: "denom", val: {...val, denom: fold_digit(val.denom, d)}};
     }; }
 
     // Handle incomming decimal point.
-    function decimal(state) { switch (state.type) {
-	case "empty": return {type: "float", dec: 0, frac: 0};
-	case "dec":   return {type: "float", dec: state.dec, frac: 0};
-	case "float": return state;
+    function decimal({type, val}) { switch (type) {
+	case "empty": return {type: "float", val: {integer: 0, frac: 0}};
+	case "dec":   return {type: "float", val: {integer: val, frac: 0}};
+	case "float": throw "Illegal: already in decimal.";
 	case "var":   throw "Illegal: decimal point in word.";
 	case "num":   throw "Illegal: decimal point in fraction.";
 	case "denom": throw "Illegal: decimal point in fraction.";
     }; }
 
-    // Handle incoming fraction separator.
-    function slash(state) { switch (state.type) {
+    // Convert decimal accumulator to fraction.
+    //
+    // Decimal contents preserved as whole-number value.
+    //
+    // Subsequent digits fold into numerator.
+    function num({type, val}) { switch (type) {
+	case "empty": return {type: "num", val: {integer: 0, num: 0}};
+	case "dec":   return {type: "num", val: {integer: val, num: 0}};
+	case "float": throw "Illegal: mixing float and fraction.";
+	case "var":   throw "Illegal: mixing var and fraction.";
+	case "num":   throw "Illegal: already in numerator.";
+	case "denom": throw "Illegal: already in denominator.";
+    }; }
+
+    // Convert decimal accumulator to fraction.
+    //
+    // Decimal contents preserved as numerator.
+    //
+    // Subsequent digits fold into denominator.
+    function denom({type, val}) { switch (type) {
 	case "empty": throw "Illegal: empty numerator.";
-	case "dec":   return {type: "num", num: state.dec};
+	case "dec":   return {type: "denom", val: {integer: 0, num: val, denom: 0}};
 	case "float": throw "Illegal: fraction bar in float.";
 	case "var":   throw "Illegal: fraction bar in identifier.";
-	case "num":   throw "Illegal: already in numerator.";
-	case "denom": throw "Illegal: already in numerator.";
+	case "num":   return {type: "denom", val: {...val, denom: 0}};
+	case "denom": throw "Illegal: already in denominator.";
     }; }
 
     // Handle an incomming letter.
-    function letter(state, l) { switch (state.type) {
-	case "empty": return {type: "var", id: l};
+    function letter({type, val}, l) { switch (type) {
+	case "empty": return {type: "var", val: l};
 	case "dec":   throw "Illegal: letter in numeral.";
 	case "float": throw "Illegal: letter in numeral.";
-	case "var":   return {type: "var", id: state.id + l};
+	case "var":   return {type: "var", val: val + l};
 	case "num":   throw "Illegal: leter in numerator.";
 	case "denom": throw "Illegal: Letter in denominator.";
     }; }
@@ -262,25 +280,25 @@ export const accumulator = (function () {
     //
     // This might throw, because the accumulator state might not
     // represent a meaningful value.
-    function value(state) { switch (state.type) {
+    function value({type, val}) { switch (type) {
 	case "empty":  throw "Empty Accumulator";
-	case "dec":    return state.dec;
-	case "float":  return parseFloat(`${state.dec}.${state.frac}`);
-	case "var":    return state.id;
+	case "dec":    return val;
+	case "float":  return parseFloat(`${val.integer}.${val.frac}`);
+	case "var":    return val;
 	case "num":    throw "Incomplete Fraction";
-	case "denom":  return {num: state.num, denom: state.denom};
+	case "denom":  return rat.fromProper(val);
     }; }
 
     // Return the current "display contents" of the accumulator.
     //
     // This should never throw.
-    function display(state, defs) { switch (state.type) {
+    function display({type, val}, defs) { switch (type) {
 	case "empty": return "";
-	case "dec":   return state.dec.toString();
-	case "float": return `${state.dec}.${state.frac}`;
-	case "var":   return state.id;
-	case "num":   return `${state.num} / `;
-	case "denom": return `${state.num} / ${state.denom}`;
+	case "dec":   return val.toString();
+	case "float": return `${val.integer}.${val.frac}`;
+	case "var":   return val;
+	case "num":   return `${val.integer} ${val.num} / `;
+	case "denom": return `${val.integer} ${val.num} / ${val.denom}`;
     }; }
 
     // Return whether or not the accumulator is in the empty state.
@@ -290,7 +308,7 @@ export const accumulator = (function () {
 
     return {
 	init:       empty,
-	methods:    {clear, digit, decimal, slash, letter},
+	methods:    {clear, digit, decimal, num, denom, letter},
 	properties: {value, display, isEmpty}
     };
 })();

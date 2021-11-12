@@ -164,17 +164,16 @@
       #accum {
 	  align-items: center;
 	  grid-area: a;
-	  display: grid;
-	  grid-template-rows: 1fr;
-	  grid-template-columns: 4rem 1fr;
+	  /* display: grid; */
+	  /* grid-template-rows: 1fr; */
+	  /* grid-template-columns: 4rem 1fr; */
 	  margin: 0;
 	  padding: 0;
 	  margin-left: 1rem;
 	  margin: 0.25rem;
       }
 
-      #accum > :last-child::after {
-	  content: "_";
+      #carret {
 	  font-weight: bold;
 	  -webkit-animation: .75s linear infinite condemned_blink_effect; /* for Safari 4.0 - 8.0 */
 	  animation: .75s linear infinite condemned_blink_effect;

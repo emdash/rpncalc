@@ -84,12 +84,12 @@ test("accumulator is initialized empty", () => {
 test("accumulator handles digits", () => {
     assertEq(
 	accumulator.digit(4),
-	{type: "dec", dec: 4}
+	{type: "dec", val: 4}
     );
 
     assertEq(
 	accumulator.digit(4).decimal().digit(5),
-	{type: "float", frac: 5, dec: 4}
+	{type: "float", val: {integer: 4, frac: 5}}
     );
 });
 
@@ -108,12 +108,12 @@ test("accumulator rejects letters when in digit mode", () => {
 test("accumulator accepts letters when empty", () => {
     assertEq(
 	accumulator.letter('a'),
-	{type: "var", id: 'a'}
+	{type: "var", val: 'a'}
     );
 
     assertEq(
 	accumulator.letter('a').digit('0'),
-	{type: "var", id: "a0"}
+	{type: "var", val: "a0"}
     );
 
     assertThrows(
@@ -129,17 +129,17 @@ test("accumulator can display values", () => {
     );
 
     assertEq(
-	accumulator.lift({type: "dec", dec: 4}).display(),
+	accumulator.lift({type: "dec", val: 4}).display(),
 	"4"
     );
 
     assertEq(
-	accumulator.lift({type: "float", dec: 4, frac: 123}).display(),
+	accumulator.lift({type: "float", val: {integer: 4, frac: 123}}).display(),
 	"4.123"
     );
 
     assertEq(
-	accumulator.lift({type: "var", id: "abc"}).display(),
+	accumulator.lift({type: "var", val: "abc"}).display(),
 	"abc"
     );
 });
@@ -151,66 +151,117 @@ test("accumulator can produce values", () => {
     );
 
     assertEq(
-	accumulator.lift({type: "dec", dec: 4}).value(),
+	accumulator.lift({type: "dec", val: 4}).value(),
 	4
     );
 
     assertEq(
-	accumulator.lift({type: "float", dec: 4, frac: 123}).value(),
+	accumulator.lift({type: "float", val: {integer: 4, frac: 123}}).value(),
 	4.123
     );
 
     assertEq(
-	accumulator.lift({type: "var", id: "abc"}).value(),
+	accumulator.lift({type: "var", val: "abc"}).value(),
 	"abc"
     );
 });
 
-test("accumulator handles fraction slash correctly", () => {
+test("accumulator handles denom token correctly", () => {
     assertThrows(
-	() => accumulator.slash(),
+	() => accumulator.denom(),
 	"Illegal: empty numerator."
     );
 
     assertThrows(
-	() => accumulator.digit(4).slash().decimal(),
+	() => accumulator.digit(4).denom().decimal(),
 	"Illegal: decimal point in fraction."
     );
 
     assertThrows(
-	() => accumulator.digit(4).slash().digit(5).decimal(),
+	() => accumulator.digit(4).denom().digit(5).decimal(),
 	"Illegal: decimal point in fraction."
     );
+
     assertThrows(
-	() => accumulator.digit(4).decimal().slash(),
+	() => accumulator.digit(4).decimal().denom(),
 	"Illegal: fraction bar in float."
     );
 
     assertThrows(
-	() => accumulator.letter('x').slash(),
+	() => accumulator.letter('x').denom(),
 	"Illegal: fraction bar in identifier."
     );
 
     assertThrows(
-	() => accumulator.digit(3).slash().slash(),
+	() => accumulator.digit(3).denom().denom(),
+	"Illegal: already in denominator."
+    );
+
+    assertThrows(
+	() => accumulator.digit(3).denom().digit(4).denom(),
+	"Illegal: already in denominator."
+    );
+});
+
+test("accumulator handles num token correctly", () => {
+    assertEq(
+	accumulator.num(),
+	{type: "num", val: {integer: 0, num: 0}}
+    );
+
+    assertThrows(
+	() => accumulator.digit(4).num().decimal(),
+	"Illegal: decimal point in fraction."
+    );
+
+    assertThrows(
+	() => accumulator.digit(4).num().digit(5).decimal(),
+	"Illegal: decimal point in fraction."
+    );
+
+    assertThrows(
+	() => accumulator.digit(4).decimal().num(),
+	"Illegal: mixing float and fraction."
+    );
+
+    assertThrows(
+	() => accumulator.letter('x').num(),
+	"Illegal: mixing var and fraction."
+    );
+
+    assertThrows(
+	() => accumulator.digit(3).num().num(),
 	"Illegal: already in numerator."
     );
 
     assertThrows(
-	() => accumulator.digit(3).slash().digit(4).slash(),
-	"Illegal: already in numerator."
+	() => accumulator.digit(3).denom().num(),
+	"Illegal: already in denominator."
     );
 });
 
 test("accumulator can produce fractions", () => {
     assertEq(
-	accumulator.digit(3).slash().digit(4).value(),
+	accumulator.digit(3).denom().digit(4).value(),
 	{num: 3, denom: 4}
     );
 
     assertEq(
-	accumulator.digit(3).digit(4).slash().digit(5).digit(6).value(),
+	accumulator.digit(3).digit(4).denom().digit(5).digit(6).value(),
 	{num: 34, denom: 56}
+    );
+
+    assertEq(
+	accumulator.digit(5).num().digit(3).denom().digit(4).value(),
+	rat.fromProper({integer: 5, num: 3, denom: 4})
+    );
+
+    assertEq(
+	accumulator.digit(5).digit(4)
+	    .denom()
+	    .digit(1).digit(2).digit(7)
+	    .value(),
+	{num: 54, denom: 127}
     );
 });
 
@@ -492,7 +543,7 @@ test("basic arithmetic operations on fractions", () => {
 
 test("we can find arbitrary fractional aproximations", () => {
     assertEq(
-	rat.approx(debug(rat.fromFloat(Math.PI)), 64),
+	rat.approx(rat.fromFloat(Math.PI), 64),
 	{num: 201, denom: 64}
     );
 
@@ -518,3 +569,4 @@ test("we can find arbitrary fractional aproximations", () => {
 });
 
 window.rat = rat;
+window.accumulator = accumulator;

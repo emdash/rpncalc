@@ -77,6 +77,27 @@ function display(value) {
     }
 }
 
+const hide_zero = number => (number === 0) ? "" : number.toString();
+
+function render_accum({type, val}) {
+    const carret = span({id: "carret"}, "_");
+
+    switch (type) {
+    case "empty": return [carret];
+    case "dec":   return [val.toString(), carret];
+    case "float": return [`${val.integer}.${val.frac}`, carret];
+    case "var":   return [val.toString(), carret];
+    case "num":   return [math(
+	hide_zero(val.integer),
+	fraction(mrow(hide_zero(val.num), carret), "?")
+    )];
+    case "denom": return [math(
+	hide_zero(val.integer),
+	fraction(val.num.toString(), mrow(hide_zero(val.denom), carret))
+    )];
+    };
+}
+;
 
 /*** Application entry point *************************************************/
 
@@ -192,11 +213,7 @@ export function app(element) {
 	}
 
 	// Render the accumulator
-	append(div(
-	    {id: "accum"},
-	    div({}, `${calc.accum.type}`),
-	    div({}, "> " + actions.display()),
-	));
+	append(div({id: "accum"}, ...render_accum(calc.accum)));
     }
 
     // This is where we transform the pure calculator type into a
@@ -214,7 +231,8 @@ export function app(element) {
     const symbol   = (s) => ({name: s, label: s, func: () => state.letter(s)});
     const operator = (f) => ({name: f, label: symbols[f] || f, func: () => state.operator(f)});
 
-    debug(digits);
+    const fnum = math(mrow("?", fraction("num", "?")));
+    const fdenom = math(fraction("?", "denom"));
 
     // Table of functions which are special-case for one reason or
     // another.
@@ -226,6 +244,8 @@ export function app(element) {
 	dec:   {name: "dec",   label: ".",     func: state.decimal},
 	undo:  {name: "undo",  label: "undo",  func: state.undo},
 	redo:  {name: "redo",  label: "redo",  func: state.redo},
+	fnum:  {name: "num",   label: fnum, func: state.num},
+	fdenom: {name: "denom", label: fdenom, func: state.denom},
 	"=":   {name: "store", label: "=",     func: state.store},
 	"#":   {name: "enter", label: "enter", func: state.enter},
 	"+":   operator("add"),
@@ -309,8 +329,8 @@ export function app(element) {
 	"4     5    6       fadd ",
 	"1     2    3       #",
 	"1     2    3       #",
-	"0     0    slash   #",
-	"0     0    slash   swap",
+	"0     0    fnum    #",
+	"0     0    fdenom  swap",
     );
 
     const a = layout(
