@@ -166,6 +166,22 @@ export const builtins = {
     fdiv:    builtin(2, rat.promoted(rat.div)),
     finv:    builtin(1, rat.promoted(rat.inv)),
 
+    "in":    unimplemented(1, "in"),
+    ft:      unimplemented(1, "ft"),
+    yd:      unimplemented(1, "yd"),
+    mi:      unimplemented(1, "mi"),
+    oz:      unimplemented(1, "oz"),
+    lb:      unimplemented(1, "lb"),
+    floz:    unimplemented(1, "floz"),
+    cup:     unimplemented(1, "cup"),
+    pint:    unimplemented(1, "pint"),
+    qt:      unimplemented(1, "qt"),
+    gal:     unimplemented(1, "gal"),
+
+    usadd:   unimplemented(2, "add"),
+    ussub:   unimplemented(2, "sub"),
+    usmul:   unimplemented(2, "mul"),
+    usdiv:   unimplemented(2, "div"),
 
     abs:     builtin(1, Math.abs),
     acos:    builtin(1, Math.acos),
