@@ -241,10 +241,10 @@ export function app(element) {
     const func          = (name, label, func)       => key("function",      name, label, func);
     const unimplemented = name                      => key("unimplemented", name, name,  () => {});
 
-    // Handles all digits in key layouts.
+    // Handles all digit keys.
     const digit = d => symbol(`d${d}`, d, () => state.digit(parseInt(d)));
 
-    // Handles letters
+    // Handles all letter keys.
     const letter = l => debug(symbol(l, l, () => state.letter(d)));
 
     // Handles all builtin operators in key layouts.
@@ -285,6 +285,7 @@ export function app(element) {
     // - unimplemented
     function item(token) {
 	// TODO: We could support hexadecimal here.
+	// XXX: regexes?
 	const digits = new Set("0123456789");
 	const letters = new Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
@@ -411,7 +412,9 @@ export function app(element) {
 	'7':         () => state.digit(7),
 	'8':         () => state.digit(8),
 	'9':         () => state.digit(9),
-	'.':         () => state.dec(),
+	'.':         () => state.decimal(),
+	",":         () => state.denom(),
+	";":         () => state.num(),
 	'x':         () => state.letter('x'),
 	'y':         () => state.letter('y'),
 	'+':         () => state.operator('add'),
