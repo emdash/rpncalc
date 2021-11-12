@@ -160,22 +160,30 @@
       }
 
       #accum {
-	  align-items: center;
 	  grid-area: a;
-	  /* display: grid; */
-	  /* grid-template-rows: 1fr; */
-	  /* grid-template-columns: 4rem 1fr; */
+	  vertical-align: middle;
 	  margin: 0;
-	  padding: 0;
-	  margin-left: 1rem;
-	  margin: 0.25rem;
+	  padding: 0.5rem;
+	  background-color: #ddFFcc;
+	  font-size: 1.5rem;
+      }
+
+      #accum math, #accum math * {
+	  font-family: "mono";
       }
 
       #carret {
+	  display: inline-block;
 	  font-weight: bold;
-	  -webkit-animation: .75s linear infinite condemned_blink_effect; /* for Safari 4.0 - 8.0 */
-	  animation: .75s linear infinite condemned_blink_effect;
+	  font-style: underline;
+	  animation: 0.375s linear infinite condemned_blink_effect;
+	  margin: 0;
+	  padding: 0;
       }
+
+      #carret:empty::after {
+	  content: "\00a0";
+      };
 
       h1 {
 	  display: grid;
@@ -184,28 +192,15 @@
 	  font-size: inherit;
       }
 
-      /* for Safari 4.0 - 8.0 */
-      @-webkit-keyframes condemned_blink_effect {
-	  0% {
-	      visibility: hidden;
-	  }
-	  50% {
-	      visibility: hidden;
-	  }
-	  100% {
-	      visibility: visible;
-	  }
-      }
-
       @keyframes condemned_blink_effect {
 	  0% {
-	      visibility: hidden;
+	      text-decoration: none;
 	  }
-	  50% {
-	      visibility: hidden;
+	  30% {
+	      text-decoration: none;
 	  }
 	  100% {
-	      visibility: visible;
+	      text-decoration: underline 0.0625em;;
 	  }
       }
     </style>

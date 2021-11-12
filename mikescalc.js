@@ -20,6 +20,8 @@ import {
     radioGroup,
     monkeyPatch,
     math,
+    mathml,
+    mi,
     mrow,
     mn,
     fraction,
@@ -80,24 +82,32 @@ function display(value) {
 const hide_zero = number => (number === 0) ? "" : number.toString();
 
 function render_accum({type, val}) {
-    const carret = span({id: "carret"}, "_");
+    const carret = x => {
+	const as_str = (x && x.toString()) || "";
+	const length = as_str.length;
+	const head = as_str.slice(0, length - 1);
+	const tail = as_str.slice(length - 1, length);
+	return mn(head, span({id: "carret"}, tail));
+    };
 
     switch (type) {
-    case "empty": return [carret];
-    case "dec":   return [val.toString(), carret];
-    case "float": return [`${val.integer}.${val.frac}`, carret];
-    case "var":   return [val.toString(), carret];
-    case "num":   return [math(
-	hide_zero(val.integer),
-	fraction(mrow(hide_zero(val.num), carret), "?")
-    )];
-    case "denom": return [math(
-	hide_zero(val.integer),
-	fraction(val.num.toString(), mrow(hide_zero(val.denom), carret))
-    )];
+    case "empty": return carret();
+    case "dec":   return carret(val.toString());
+    case "float": return span(
+	{},
+	val.integer.toString(), ".",
+	carret(hide_zero(val.frac)));
+    case "var":   return carret(val.toString());
+    case "num":   return math(
+	mn(hide_zero(val.integer)),
+	fraction(carret(hide_zero(val.num)), mn("?")));
+    case "denom": return math(
+	mn(hide_zero(val.integer)),
+	fraction(val.num.toString(), carret(hide_zero(val.denom))));
     };
+
+    return `Error: Invalid State: ${type}`;
 }
-;
 
 /*** Application entry point *************************************************/
 
@@ -213,7 +223,7 @@ export function app(element) {
 	}
 
 	// Render the accumulator
-	append(div({id: "accum"}, ...render_accum(calc.accum)));
+	append(div({id: "accum"}, render_accum(calc.accum)));
     }
 
     // This is where we transform the pure calculator type into a
@@ -231,8 +241,8 @@ export function app(element) {
     const symbol   = (s) => ({name: s, label: s, func: () => state.letter(s)});
     const operator = (f) => ({name: f, label: symbols[f] || f, func: () => state.operator(f)});
 
-    const fnum = math(mrow("?", fraction("num", "?")));
-    const fdenom = math(fraction("?", "denom"));
+    const fnum = math(mrow(mi("x"), fraction("n", "?")));
+    const fdenom = math(fraction(mi("x"), "d"));
 
     // Table of functions which are special-case for one reason or
     // another.
