@@ -297,32 +297,32 @@ export function app(element) {
     /* Standard Keypad layouts ***********************************************/
 
     const basic = layout(
-	"=   /   *    -",
-	"7   8   9    +",
-	"4   5   6    +",
-	"1   2   3    #",
-	"0   0   dec  swap",
+	"swap /   *    -",
+	"7    8   9    +",
+	"4    5   6    +",
+	"1    2   3    #",
+	"0    0   dec  #",
     );
 
     const scientific = layout(
-	"sin cos  tan     hypot",
-	"log ln   log10   log2 ",
-	"pow exp  square  sqrt ",
-	"=   /    *       -    ",
-	"7   8    9       +    ",
-	"7   8    9       +    ",
-	"4   5    6       +    ",
-	"4   5    6       +    ",
-	"1   2    3       #    ",
-	"1   2    3       #    ",
-	"0   0    dec     #    ",
-	"0   0    dec     swap ",
+	"sin  cos  tan     hypot",
+	"log  ln   log10   log2",
+	"pow  exp  square  sqrt",
+	"swap /    *       -   ",
+	"7    8    9       +   ",
+	"7    8    9       +   ",
+	"4    5    6       +   ",
+	"4    5    6       +   ",
+	"1    2    3       #   ",
+	"1    2    3       #   ",
+	"0    0    dec     #   ",
+	"0    0    dec     #   ",
     );
 
     const frac = layout(
 	"f2    f4   f8      f16",
  	"float finv approx  frac",
-	"=     fdiv fmul    fsub ",
+	"swap  fdiv fmul    fsub ",
 	"7     8    9       fadd ",
 	"7     8    9       fadd ",
 	"4     5    6       fadd ",
@@ -330,7 +330,7 @@ export function app(element) {
 	"1     2    3       #",
 	"1     2    3       #",
 	"0     0    fnum    #",
-	"0     0    fdenom  swap",
+	"0     0    fdenom  #",
     );
 
     const a = layout(
