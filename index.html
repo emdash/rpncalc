@@ -10,13 +10,17 @@
     <style>
       html {
 	  font-size: 4vw;
+	  background-color: #FFFFFF;
+      }
+
+      h1 {
+	  font-size: 1rem;
       }
       
       body {
 	  display: block;
 	  font-family: "mono";
 	  user-select: none;
-	  background-color: #eeeeee;
       }
 
       button {
@@ -42,6 +46,7 @@
       }
 
       #state {
+	  background-color: #eeeeee;
 	  display: grid;
 	  position: absolute;
 	  top: 0;
@@ -49,30 +54,27 @@
 	  bottom: 0;
 	  left: 0;
 	  grid-gap: 0.5rem;
+	  grid-template: 3rem 1fr 2fr 3rem / 1fr 1fr;
+	  grid-template-areas:
+	      "a a t t"
+	      "s s v v"
+	      "c c c c"
+	      "m m m m";
       }
 
-      /* Grid for landscape-like aspect ratios */
-      @media (min-aspect-ratio: 1/1) {
-	  #state {
-	      grid-template: 3rem 1fr 1fr 2.5rem / 20rem 1fr 1fr 1fr;
-	      grid-template-areas:
-	          "a a t t"
-		  "s c c c"
-		  "s c c c"
-		  "m m m m";
+      /* Grid for landscape-like aspect ratios 
+       *
+       * Just pillar-box the portrait layout, adjusting font size
+       * down.
+       */
+      @media (min-aspect-ratio: 4/5) {
+	  html {
+	      font-size: 2vw;
 	  }
-      }
 
-      /* Grid for portrait-like aspect ratios */
-      @media (max-aspect-ratio: 1/1) or (aspect-ratio: 1/1) {
-	  /* Establish basic grid */
 	  #state {
-	      grid-template: 3rem 1fr 2fr 3rem / 1fr 1fr;
-	      grid-template-areas:
-	          "a a t t"
-		  "s s v v"
-		  "c c c c"
-		  "m m m m";
+	      left: 20%;
+	      right: 20%;
 	  }
       }
 
@@ -96,9 +98,7 @@
       #tools {
 	  grid-area: t;
 	  display: flex;
-	  justify-content: flex-end;
-	  grid-template-rows: 1fr;
-	  grid-template-columns: repeat(12, 1fr);
+	  justify-content: space-between;
 	  grid-gap: 0.5rem;
       }
 
@@ -189,7 +189,7 @@
 	  display: grid;
 	  font-family: "arial";
 	  margin: 0.25rem;
-	  font-size: inherit;
+	  font-size: 0.5rem;
       }
 
       @keyframes condemned_blink_effect {
