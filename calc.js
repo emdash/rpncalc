@@ -107,6 +107,9 @@ const unimplemented = (n, name) => builtin(0, () => {
 });
 
 
+const divisor = d => x => rat.mul(rat.promote(x), {num: 1, denom: d});
+
+
 // Dispatch table for stack operations.
 export const builtins = {
     add:     builtin(2, (x, y) => x + y),
@@ -118,10 +121,10 @@ export const builtins = {
     frac:    builtin(1, rat.fromFloat),
     float:   builtin(1, rat.toFloat),
     approx:  builtin(2, rat.approx),
-    f2:      builtin(0, () => ({num: 1, denom: 2})),
-    f4:      builtin(0, () => ({num: 1, denom: 4})),
-    f8:      builtin(0, () => ({num: 1, denom: 8})),
-    f16:     builtin(0, () => ({num: 1, denom: 16})),
+    f2:      builtin(1, divisor(2)),
+    f4:      builtin(1, divisor(4)),
+    f8:      builtin(1, divisor(8)),
+    f16:     builtin(1, divisor(16)),
     fadd:    builtin(2, rat.promoted(rat.add)),
     fsub:    builtin(2, rat.promoted(rat.sub)),
     fmul:    builtin(2, rat.promoted(rat.mul)),

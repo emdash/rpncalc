@@ -51,11 +51,11 @@ const symbols = {
     fsub: "-",
     fmul: "⨉",
     fdiv: "÷",
-    f2:   "\u{0031}\u{2044}\u{0032}",
-    f4:   "\u{0031}\u{2044}\u{0034}",
-    f8:   "\u{0031}\u{2044}\u{0038}",
-    f16:   "\u{0031}\u{2044}\u{0031}\u{0036}",
-    finv: math(fraction("1", "x"))
+    f2:   math(fraction("x", "2")),
+    f4:   math(fraction("x", "4")),
+    f8:   math(fraction("x", "8")),
+    f16:  math(fraction("x", "16")),
+    finv: math(fraction("1", "x")),
 };
 
 function display(value) {
