@@ -114,12 +114,10 @@ export const radioGroup = (selected, ...items) => items.map(
 );
 
 
-// Monkey patch HTMLElement to add a fluent API for event handlers and
-// style tweaks.
+// Monkey patch HTMLElement to add a fluent API
 //
-// XXX: this has an annoying side-effect that these methods appear as
-// attributes in the HTML inspector, making an otherwise clean DOM
-// tree look pretty cluttered and hard to read. At least in FireFox.
+// - event handlers
+// - style tweaks.
 export function monkeyPatch() {
     HTMLElement.prototype.handle = function (event, handler) {
 	this.addEventListener(event, handler);
@@ -130,5 +128,4 @@ export function monkeyPatch() {
 	this.style[name] = value;
 	return this;
     }
-
 };

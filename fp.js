@@ -58,6 +58,10 @@ export const flatten = (obj) => Object
 
 // Monkey patch some useful methods into the standard library
 // Old-style function syntax used for correct handling of `this`.
+//
+// XXX: this has obnoxious side-effect that these methods appear as
+// attributes in the HTML inspector, making an otherwise clean DOM
+// tree look pretty cluttered and hard to read. At least in FireFox.
 Object.prototype.map     = function (func) {return objmap(func, this);};
 Object.prototype.flatten = function ()     {return flatten(this);};
 

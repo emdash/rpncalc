@@ -214,7 +214,7 @@ export function app(element) {
 		div(
 		    {id: "content"},
 		    ...layout.keys.map(
-			({name, label, func}) => button({id: name}, label)
+			({type, name, label, func}) => button({id: name, "class": type}, label)
 			    .handle('click', func)
 			    .setStyle('grid-area', name)
 		    )
@@ -235,71 +235,93 @@ export function app(element) {
 
     /* Keypad layout *****************************************************/
 
-    // Helper functions
-    const digits   = new Set("0123456789");
-    const digit    = (d) => ({name: `d${d}`, label: d, func: () => state.digit(parseInt(d))});
-    const symbol   = (s) => ({name: s, label: s, func: () => state.letter(s)});
-    const operator = (f) => ({name: f, label: symbols[f] || f, func: () => state.operator(f)});
+    // Build a small embedded DSL for keyboard layouts.
+    const key           = (type, name, label, func) => ({type, name, label, func});
+    const symbol        = (name, label, func)       => key("symbol",        name, label, func);
+    const func          = (name, label, func)       => key("function",      name, label, func);
+    const unimplemented = name                      => key("unimplemented", name, name,  () => {});
 
+    // Handles all digits in key layouts.
+    const digit = d => symbol(`d${d}`, d, () => state.digit(parseInt(d)));
+
+    // Handles letters
+    const letter = l => debug(symbol(l, l, () => state.letter(d)));
+
+    // Handles all builtin operators in key layouts.
+    const builtin = op => func(op, symbols[op] || op, () => state.operator(op));
+
+    // Define some fancy button labels for fraction separators.
+    //
+    // These hopefully look like what they do, since what they do is a
+    // little strange. (i.e. the state.num() / sttae.denom() methods
+    // do, for mixed numbers and fractions, what state.dec() point
+    // does for floating-point).
     const fnum = math(mrow(mi("x"), fraction("n", "?")));
     const fdenom = math(fraction(mi("x"), "d"));
 
-    // Table of functions which are special-case for one reason or
-    // another.
+    // This table is used for a few oddball cases.
     const specials = {
-	swap:  {name: "swap",  label: symbols["exch"],  func: () => state.exch(-1, -2)},
-	slash: {name: "slash", label: "/",     func: state.slash},
-	clr:   {name: "clr",   label: "clr",   func: state.clear},
-	rst:   {name: "rst",   label: "rst",   func: state.reset},
-	dec:   {name: "dec",   label: ".",     func: state.decimal},
-	undo:  {name: "undo",  label: "undo",  func: state.undo},
-	redo:  {name: "redo",  label: "redo",  func: state.redo},
-	fnum:  {name: "num",   label: fnum, func: state.num},
-	fdenom: {name: "denom", label: fdenom, func: state.denom},
-	"=":   {name: "store", label: "=",     func: state.store},
-	"#":   {name: "enter", label: "enter", func: state.enter},
-	"+":   operator("add"),
-	"-":   operator("sub"),
-	"*":   operator("mul"),
-	"/":   operator("div"),
+	// These dispatch to methods on state, not builtin operators.
+	swap:   func   ("swap",  "\u{2B0D}", () => state.exch(-1, -2)),
+	dec:    symbol ("dec",   ".",        state.decimal),
+	fnum:   symbol ("num",   fnum,       state.num),
+	fdenom: symbol ("denom", fdenom,     state.denom),
+	// These are short-hand aliases, which are not CSS-legal.
+	"=":    func   ("store", "=",        state.store),
+	"#":    symbol ("enter", "enter",    state.enter),
+	"+":    builtin("add"),
+	"-":    builtin("sub"),
+	"*":    builtin("mul"),
+	"/":    builtin("div"),
     };
 
-    // Return the layout entry for a token in our layout dsl.
-    function entry (token) {
+    // Return the layout item for the given token.
+    //
+    // A token is one of:
+    // - digit
+    // - builtin
+    // - special
+    // - placeholder
+    // - unimplemented
+    function item(token) {
+	// TODO: We could support hexadecimal here.
+	const digits = new Set("0123456789");
+	const letters = new Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+
 	if (digits.has(token)) {
 	    return digit(token);
+	} else if (letters.has(token)) {
+	    return letter(token);
 	} else if (token in builtins) {
-	    return operator(token);
+	    return builtin(token);
 	} else if (token in specials) {
 	    return specials[token];
 	} else if (token == ".") {
 	    return {name: "."};
 	} else {
-	    return symbol(token);
+	    return unimplemented(token);
 	}
     };
 
     // Create the 2D key layout for the given layout spec.
     const layout = (...rows) => {
-	// Convert the input text into a array of array of entry
-	// records.
-	const entries = rows.map(split).map(row => row.map(entry));
+	// Split reach row into a list of items.
+	const items = rows.map(split).map(row => row.map(item));
 
-	// Recombine the layout into a string compatible with CSS.
+	// Generate a string compatible with CSS `grid-template-areas`
+	// property.
 	//
-	// We use the `grid-template-areas` property for formatting,
-	// but the DSL makes use of funky characters which aren't
-	// legal in the CSS to keep the layouts concise.
-	//
-	// So we need to replace the funky characters with their more
-	// wordy equivalents.
-	const areas = entries
+	// For the sake of brevity, the DSL makes use of some symbols
+	// which aren't legal in the CSS property. We replace these
+	// with wordy equivalents here.
+	const areas = items
 	      .map(row => row.map(({name}) => name).join(" "))
 	      .map(JSON.stringify)
 	      .join(" ");
 
-	// Return a flattened, deduplicated list of entries.
-	const keys = [...new Set(entries.flat().filter(x => x.name !== "."))];
+	// Return a flattened, deduplicated list of items that we can
+	// iterate over.
+	const keys = [...new Set(items.flat().filter(x => x.name !== "."))];
 
 	return {keys, areas};
     };
@@ -332,11 +354,11 @@ export function app(element) {
     const frac = layout(
 	"f2    f4   f8      f16",
  	"float finv approx  frac",
-	"swap  fdiv fmul    fsub ",
-	"7     8    9       fadd ",
-	"7     8    9       fadd ",
-	"4     5    6       fadd ",
-	"4     5    6       fadd ",
+	"swap  fdiv fmul    fsub",
+	"7     8    9       fadd",
+	"7     8    9       fadd",
+	"4     5    6       fadd",
+	"4     5    6       fadd",
 	"1     2    3       #",
 	"1     2    3       #",
 	"0     0    fnum    #",
@@ -389,7 +411,7 @@ export function app(element) {
 	'7':         () => state.digit(7),
 	'8':         () => state.digit(8),
 	'9':         () => state.digit(9),
-	'.':         () => state.decimal(),
+	'.':         () => state.dec(),
 	'x':         () => state.letter('x'),
 	'y':         () => state.letter('y'),
 	'+':         () => state.operator('add'),
