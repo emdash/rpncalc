@@ -93,6 +93,18 @@ function assertInt(value) {
     return value;
 }
 
+
+// Tell if something is a rational or not.
+function assertRat(x) {
+    const {integer, num, denom} = x;
+    assertInt(num);
+    assertInt(denom);
+    if (integer !== undefined) {
+	raise Error("${x} is a proper fraction");
+    }
+}
+
+
 // euclid's algorithm for finding greatest common divider.
 export function gcd(a /*: int */, b /* :int */) /*: int */ {
     if (b === 0) {
