@@ -245,7 +245,7 @@ export function app(element) {
     const digit = d => symbol(`d${d}`, d, () => state.digit(parseInt(d)));
 
     // Handles all letter keys.
-    const letter = l => debug(symbol(l, l, () => state.letter(d)));
+    const letter = l => debug(symbol(l, l, () => state.letter(l)));
 
     // Handles all builtin operators in key layouts.
     const builtin = op => func(op, symbols[op] || op, () => state.operator(op));
