@@ -1,4 +1,4 @@
-# RPN Calculator with advanced features
+# Mobile-First RPN Calculator
 
 ![screenshot!](images/screenshot.png)
 
@@ -71,7 +71,7 @@ the same result:
 
 ![fractions mode!](images/fractions.png)
 
-If you enter fraction mode (`a/b` on the bottom row), the decimal
+Enter enter fraction mode (`frac`), the decimal
 point key is replaced with two special keys. 
 ![special keys!](images/numdenom.png)
 
