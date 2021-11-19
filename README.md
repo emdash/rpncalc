@@ -104,8 +104,14 @@ input history, and contains some bugs.
 
 ### Roadmap
 
-- implement unit-based arithmetic.
+- surface user errors in an informative and unobtrusive way.
+- persist sessions via local storage
+- unit-based arithmetic (dimensional analysis)
+  - us customary
+  - SI
+  - CGS
 - drag-and-drop stack stack reordering.
 - tape / history editing.
 - user-defined functions.
 - user-defined units and conversions.
+- improve keyboard operation
