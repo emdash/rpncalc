@@ -76,6 +76,24 @@ import {
 import * as rat from './rat.js';
 
 
+// This set of classes covers all errors caused by the user.
+export class UserError    extends Error {};
+export class IllegalToken extends UserError {};
+export class ValueError   extends UserError {};
+
+export const underflow       = new UserError("Stack Underflow");
+export const overflow        = new UserError("Stack Overflow");
+export const not_implemented = new UserError("Not implemented.");
+export const incomplete_frac = new ValueError("Incomplete Fraction.");
+export const empty_accum     = new ValueError("Accumulator is empty.");
+export const extra_decimal   = new IllegalToken("Already have decimal.");
+export const not_a_letter    = new IllegalToken("Not a letter.");
+export const decimal_in_frac = new IllegalToken("decimal point in fraction");
+export const frac_in_float   = new IllegalToken("fraction separator in float");
+export const extra_num       = new IllegalToken("Already in numerator.");
+export const extra_denom     = new IllegalToken("Already in denominator.");
+export const not_a_digit     = new IllegalToken("Not a digit.");
+
 /*** Calculator business logic ********************************************/
 
 
@@ -104,7 +122,7 @@ function builtin(arity, func) {
 		const args = stack.slice(pivot);
 		return [...stack.slice(0, pivot), func(...args)];
 	    } else {
-		throw "stack underflow";
+		throw underflow;
 	    }
 	};
     }
@@ -120,7 +138,7 @@ const constant = (c) => builtin(0, () => c);
 // Ideally, no usage of this ever gets committed, but it is useful
 // when developing new features, so keep it here.
 const unimplemented = (n, name) => builtin(0, () => {
-    throw new Error(`${name} is not yet implemented.`);
+    throw not_implemented;
 });
 
 
@@ -247,10 +265,10 @@ export const accumulator = (function () {
     function decimal({type, val}) { switch (type) {
 	case "empty": return {type: "float", val: {integer: 0, frac: 0}};
 	case "dec":   return {type: "float", val: {integer: val, frac: 0}};
-	case "float": throw "Illegal: already in decimal.";
-	case "var":   throw "Illegal: decimal point in word.";
-	case "num":   throw "Illegal: decimal point in fraction.";
-	case "denom": throw "Illegal: decimal point in fraction.";
+	case "float": throw  underflow;
+	case "var":   throw  decimal_in_word;
+	case "num":   throw  decimal_in_frac;
+	case "denom": throw  decimal_in_frac;
     }; }
 
     // Convert decimal accumulator to fraction.
@@ -261,10 +279,10 @@ export const accumulator = (function () {
     function num({type, val}) { switch (type) {
 	case "empty": return {type: "num", val: {integer: 0, num: 0}};
 	case "dec":   return {type: "num", val: {integer: val, num: 0}};
-	case "float": throw "Illegal: mixing float and fraction.";
-	case "var":   throw "Illegal: mixing var and fraction.";
-	case "num":   throw "Illegal: already in numerator.";
-	case "denom": throw "Illegal: already in denominator.";
+	case "float": throw  frac_in_float;
+	case "var":   throw  not_a_letter;
+	case "num":   throw  extra_num;
+	case "denom": throw  extra_num;
     }; }
 
     // Convert decimal accumulator to fraction.
@@ -273,22 +291,22 @@ export const accumulator = (function () {
     //
     // Subsequent digits fold into denominator.
     function denom({type, val}) { switch (type) {
-	case "empty": throw "Illegal: empty numerator.";
+	case "empty": throw  incomplete_frac;
 	case "dec":   return {type: "denom", val: {integer: 0, num: val, denom: 0}};
-	case "float": throw "Illegal: fraction bar in float.";
-	case "var":   throw "Illegal: fraction bar in identifier.";
+	case "float": throw  frac_in_float;
+	case "var":   throw  frac_in_letter;
 	case "num":   return {type: "denom", val: {...val, denom: 0}};
-	case "denom": throw "Illegal: already in denominator.";
+	case "denom": throw  extra_denom;
     }; }
 
     // Handle an incomming letter.
     function letter({type, val}, l) { switch (type) {
 	case "empty": return {type: "var", val: l};
-	case "dec":   throw "Illegal: letter in numeral.";
-	case "float": throw "Illegal: letter in numeral.";
+	case "dec":   throw  not_a_digit;
+	case "float": throw  not_a_digit;
 	case "var":   return {type: "var", val: val + l};
-	case "num":   throw "Illegal: leter in numerator.";
-	case "denom": throw "Illegal: Letter in denominator.";
+	case "num":   throw  not_a_digit;
+	case "denom": throw  not_a_digit;
     }; }
 
     /* Queries on Accumulator State */
@@ -298,11 +316,11 @@ export const accumulator = (function () {
     // This might throw, because the accumulator state might not
     // represent a meaningful value.
     function value({type, val}) { switch (type) {
-	case "empty":  throw "Empty Accumulator";
+	case "empty":  throw  empty_accum;
 	case "dec":    return val;
 	case "float":  return parseFloat(`${val.integer}.${val.frac}`);
 	case "var":    return val;
-	case "num":    throw "Incomplete Fraction";
+	case "num":    throw  incomplete_frac;
 	case "denom":  return rat.fromProper(val);
     }; }
 
@@ -420,13 +438,8 @@ export const calculator = (function () {
 	const A = (a < 0) ? state.stack.length + a : a;
 	const B = (b < 0) ? state.stack.length + b : b;
 
-	if (Math.max(A, B) > state.stack.length) {
-	    throw "Illegal: Invalid stack indices";
-	}
-
-	if (Math.min(A, B) < 0) {
-	    throw "Illegal: Invalid stack indices";
-	}
+	if (Math.max(A, B) > state.stack.length) throw overflow;
+	if (Math.min(A, B) < 0)                  throw underflow;
 
 	const val_a = state.stack[A],
 	      val_b = state.stack[B];
@@ -470,7 +483,7 @@ export const calculator = (function () {
 	if (length > 0) {
 	    return stack[length - 1];
 	} else {
-	    throw "Stack Underflow";
+	    throw underflow;
 	}
     }
 

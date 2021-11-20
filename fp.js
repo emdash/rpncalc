@@ -111,23 +111,13 @@ export const hoist_props = (slot, module) => module.properties.map(
 // state type is large.
 //
 // Essentially, an RPN calculator is such a trivial state machine
-// compared to the raw power of even a smart phone, that we can afford
-// to keep a log of every action and prior state for a given session.
+// compared to the resources of a modern smart phone, that we can
+// afford to save preserve entire state history.
 //
 // This might prove problematic with persistent storage, and some care
 // should be put in to the UX around saving / loading / expiring
-// history. There's a convenience factor for having the histiory be
-// persistent, but that has to be balanced against privacy and storage
-// concerns
-//
-// What is lacking here is a coherent strategy for handling errors.
-//  - only catch "UserError" or some given error subclass from here.
-//  - set error field on resulting state
-//  - should not prevent further input
-//  - if last operation was UserError error, should not mutate undo or redo stack.
-//  - subsequent valid operation should clear error field.
-//  - other unhandled exceptions propagate up the stack.
-
+// history. There's a convenience to having persistent history, but
+// this has to be balanced against privacy and storage concerns.
 export function undoable({init, methods, properties}) {
     // Each method in `methods` will be wrapped with this function.
     //
@@ -234,19 +224,28 @@ export function asImmutableObject({init, methods, properties}) {
 //
 // When a mutator is called, the internal state is updated, and
 // `output` callback is invoked with the new state.
-export function reactor({init, methods, properties}, output) {
+//
+// If this process throws an excetion, `err` is called on the input
+// state
+export function reactor({init, methods, properties}, output, on_error) {
     let state = init;
 
     const method = (m) => (...args) => {
-	// update the internal state.
-	state = m(state, ...args);
+	try {
+	    state = m(state, ...args);
+	} catch (err) {
+	    // defer to the error handler on failure.
+	    state = on_error(state, err);
+	}
 	// notify the listener that the state has changed.
 	output(state, actions);
     };
 
     const property = (p) => (...args) => p(state, ...args);
 
-    // Since this is the end of the chain, we 
+    // Since this is the end of the chain, we can flatten these into
+    // one namespace ... though in hindsight I wonder if this is
+    // actually a good idea.
     const actions = {
 	...methods.map(method),
 	...properties.map(property)
