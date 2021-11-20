@@ -60,7 +60,15 @@ function assertThrows(callback, except) {
 	callback();
 	throw new Exception(`Expected exception: ${except}`);
     } catch (e) {
-	assertEq(e, except);
+	// UserError can be compared for direct equality, since
+	// they are globals.
+	if (e instanceof calc.UserError && e !== except) {
+	    throw new Error(`Assertion failed: ${e} !== ${except}`);
+	} else {
+	    // use stringify for comparison, since they are probably
+	    // strings.
+	    assertEq(e, except);
+	}
     }
 }
 
@@ -86,15 +94,8 @@ test("accumulator.is_empty()", () => {
 });
 
 test("accumulator is initialized empty", () => {
-    assertEq(
-	accumulator,
-	{type: "empty"}
-    );
-
-    assertThrows(
-	() => accumulator.value(),
-	"Empty Accumulator"
-    );
+    assertEq(accumulator, {type: "empty"});
+    assertThrows(() => accumulator.value(), calc.empty_accum);
 });
 
 test("accumulator handles digits", () => {
@@ -112,12 +113,12 @@ test("accumulator handles digits", () => {
 test("accumulator rejects letters when in digit mode", () => {
     assertThrows(
 	() => accumulator.digit(4).letter('a'),
-	"Illegal: letter in numeral."
+	calc.not_a_digit
     );
 
     assertThrows(
 	() => accumulator.digit(4).decimal().letter('a'),
-	"Illegal: letter in numeral."
+	calc.not_a_digit
     );
 });
 
@@ -134,7 +135,7 @@ test("accumulator accepts letters when empty", () => {
 
     assertThrows(
 	() => accumulator.letter('a').decimal(),
-	"Illegal: decimal point in word."
+	calc.not_a_letter
     );
 });
 
@@ -161,10 +162,7 @@ test("accumulator can display values", () => {
 });
 
 test("accumulator can produce values", () => {
-    assertThrows(
-	() => accumulator.value(),
-	"Empty Accumulator"
-    );
+    assertThrows(() => accumulator.value(), calc.empty_accum);
 
     assertEq(
 	accumulator.lift({type: "dec", val: 4}).value(),
@@ -183,39 +181,38 @@ test("accumulator can produce values", () => {
 });
 
 test("accumulator handles denom token correctly", () => {
-    assertThrows(
-	() => accumulator.denom(),
-	"Illegal: empty numerator."
-    );
+    assertThrows(() => accumulator.denom(), calc.incomplete_frac);
+
+    assertThrows(() => accumulator.digit(3).num(3).value(), calc.incomplete_frac);
 
     assertThrows(
 	() => accumulator.digit(4).denom().decimal(),
-	"Illegal: decimal point in fraction."
+	calc.decimal_in_frac
     );
 
     assertThrows(
 	() => accumulator.digit(4).denom().digit(5).decimal(),
-	"Illegal: decimal point in fraction."
+	calc.decimal_in_frac,
     );
 
     assertThrows(
 	() => accumulator.digit(4).decimal().denom(),
-	"Illegal: fraction bar in float."
+	calc.frac_in_float
     );
 
     assertThrows(
 	() => accumulator.letter('x').denom(),
-	"Illegal: fraction bar in identifier."
+	calc.not_a_letter
     );
 
     assertThrows(
 	() => accumulator.digit(3).denom().denom(),
-	"Illegal: already in denominator."
+	calc.extra_denom
     );
 
     assertThrows(
 	() => accumulator.digit(3).denom().digit(4).denom(),
-	"Illegal: already in denominator."
+	calc.extra_denom
     );
 });
 
@@ -227,32 +224,32 @@ test("accumulator handles num token correctly", () => {
 
     assertThrows(
 	() => accumulator.digit(4).num().decimal(),
-	"Illegal: decimal point in fraction."
+	calc.decimal_in_frac,
     );
 
     assertThrows(
 	() => accumulator.digit(4).num().digit(5).decimal(),
-	"Illegal: decimal point in fraction."
+	calc.decimal_in_frac,
     );
 
     assertThrows(
 	() => accumulator.digit(4).decimal().num(),
-	"Illegal: mixing float and fraction."
+	calc.frac_in_float
     );
 
     assertThrows(
 	() => accumulator.letter('x').num(),
-	"Illegal: mixing var and fraction."
+	calc.not_a_letter
     );
 
     assertThrows(
 	() => accumulator.digit(3).num().num(),
-	"Illegal: already in numerator."
+	calc.extra_num
     );
 
     assertThrows(
 	() => accumulator.digit(3).denom().num(),
-	"Illegal: already in denominator."
+	calc.extra_num
     );
 });
 
@@ -586,3 +583,4 @@ test("we can find arbitrary fractional aproximations", () => {
 
 window.rat = rat;
 window.accumulator = accumulator;
+window.calc = calc;
