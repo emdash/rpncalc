@@ -104,7 +104,6 @@ input history, and contains some bugs.
 
 ### Roadmap
 
-- surface user errors in an informative and unobtrusive way.
 - persist sessions via local storage
 - unit-based arithmetic (dimensional analysis)
   - us customary
