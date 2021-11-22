@@ -185,8 +185,25 @@ along with rpncalc.  If not, see <https://www.gnu.org/licenses/>. -->
 	  vertical-align: middle;
 	  margin: 0;
 	  padding: 0.5rem;
-	  background-color: #ddFFcc;
+	  background-color: #ddffcc;
 	  font-size: 1.5rem;
+	  display: flex;
+	  flex-direction: row;
+	  align-items: stretch;
+	  justify-content: space-between;
+      }
+
+      #accum[err] {
+	  animation: 0.1s ease-out both error_flash;
+      }
+
+      #err {
+	  background:none;
+	  text-align: center;
+	  padding: 0;
+	  margin: 0;
+	  color: #ff6920;
+	  font-size: xx-large;
       }
 
       #accum math, #accum math * {
@@ -223,6 +240,11 @@ along with rpncalc.  If not, see <https://www.gnu.org/licenses/>. -->
 	  100% {
 	      text-decoration: underline 0.0625em;;
 	  }
+      }
+
+      @keyframes error_flash {
+	  0%   { background-color: #ff6920; }
+	  100% { background-color: #ddffcc; }
       }
     </style>
   </head>

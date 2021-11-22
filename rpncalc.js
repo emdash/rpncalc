@@ -19,7 +19,7 @@
 "use strict";
 
 import {debug, reactor, reversed, undoable} from './fp.js';
-import {builtins, calculator} from './calc.js';
+import {builtins, calculator, UserError} from './calc.js';
 
 
 import {
@@ -99,7 +99,7 @@ function display(value) {
 
 const hide_zero = number => (number === 0) ? "" : number.toString();
 
-function render_accum({type, val}) {
+function render_accum({type, val}, err) {
     const carret = x => {
 	const as_str = (x && x.toString()) || "";
 	const length = as_str.length;
@@ -108,23 +108,33 @@ function render_accum({type, val}) {
 	return mn(head, span({id: "carret"}, tail));
     };
 
-    switch (type) {
-    case "empty": return carret();
-    case "dec":   return carret(val.toString());
-    case "float": return span(
-	{},
-	val.integer.toString(), ".",
-	carret(hide_zero(val.frac)));
-    case "var":   return carret(val.toString());
-    case "num":   return math(
-	mn(hide_zero(val.integer)),
-	fraction(carret(hide_zero(val.num)), mn("?")));
-    case "denom": return math(
-	mn(hide_zero(val.integer)),
-	fraction(val.num.toString(), carret(hide_zero(val.denom))));
-    };
+    const content = (() => { switch (type) {
+	case "empty": return carret();
+	case "dec":   return carret(val.toString());
+	case "float": return span(
+	    {},
+	    val.integer.toString(), ".",
+	    carret(hide_zero(val.frac)));
+	case "var":   return carret(val.toString());
+	case "num":   return math(
+	    mn(hide_zero(val.integer)),
+	    fraction(carret(hide_zero(val.num)), mn("?")));
+	case "denom": return math(
+	    mn(hide_zero(val.integer)),
+	    fraction(val.num.toString(), carret(hide_zero(val.denom))));
+	default:      return `Invalid State: ${type}`;
+    }})();
 
-    return `Error: Invalid State: ${type}`;
+    if (err) {
+	return div(
+	    {id: "accum", err: err.message},
+	    content,
+	    button({id: "err"}, "\u26a0")
+		.handle("click", () => alert(err.message))
+	);
+    } else {
+	return div({id: "accum"}, content);
+    }
 }
 
 /*** Application entry point *************************************************/
@@ -241,12 +251,20 @@ export function app(element) {
 	}
 
 	// Render the accumulator
-	append(div({id: "accum"}, render_accum(calc.accum)));
+	append(render_accum(calc.accum, state.err));
+    }
+
+    function on_err(state, err) {
+	if (err instanceof UserError) {
+	    return {...state, err};
+	} else {
+	    throw err;
+	}
     }
 
     // This is where we transform the pure calculator type into a
     // stateful wrapper.
-    const state = reactor(undoable(calculator), render);
+    const state = reactor(undoable(calculator), render, on_err);
 
     // Split a string on whitespace, dropping the empty strings.
     const split = (str) => str.split(' ').filter(x => !!x);
@@ -263,7 +281,7 @@ export function app(element) {
     const digit = d => symbol(`d${d}`, d, () => state.digit(parseInt(d)));
 
     // Handles all letter keys.
-    const letter = l => debug(symbol(l, l, () => state.letter(l)));
+    const letter = l => symbol(l, l, () => state.letter(l));
 
     // Handles all builtin operators in key layouts.
     const builtin = op => func(op, symbols[op] || op, () => state.operator(op));
