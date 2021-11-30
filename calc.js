@@ -74,10 +74,10 @@ import {
 
 
 import * as rat from './rat.js';
+import {UserError} from './error.js';
 
 
 // This set of classes covers all errors caused by the user.
-export class UserError    extends Error {};
 export class IllegalToken extends UserError {};
 export class ValueError   extends UserError {};
 

@@ -19,7 +19,8 @@
 "use strict";
 
 import {debug, reactor, reversed, undoable} from './fp.js';
-import {builtins, calculator, UserError} from './calc.js';
+import {builtins, calculator} from './calc.js';
+import {UserError} from './error.js';
 
 
 import {

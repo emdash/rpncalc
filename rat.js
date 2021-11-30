@@ -100,7 +100,7 @@ function assertRat(x) {
     assertInt(num);
     assertInt(denom);
     if (integer !== undefined) {
-	raise Error("${x} is a proper fraction");
+	throw Error("${x} is a proper fraction");
     }
 }
 
