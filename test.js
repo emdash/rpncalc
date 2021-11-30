@@ -20,6 +20,8 @@
 import {assert, debug, asImmutableObject} from './fp.js';
 import * as calc from './calc.js';
 import * as rat from './rat.js';
+import * as fp from './fp.js';
+import {UserError} from './error.js';
 
 // quick-and dirty helper to append an element to the document.
 function append(html) {
@@ -62,7 +64,7 @@ function assertThrows(callback, except) {
     } catch (e) {
 	// UserError can be compared for direct equality, since
 	// they are globals.
-	if (e instanceof calc.UserError && e !== except) {
+	if (e instanceof UserError && e !== except) {
 	    throw new Error(`Assertion failed: ${e} !== ${except}`);
 	} else {
 	    // use stringify for comparison, since they are probably
