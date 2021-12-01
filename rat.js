@@ -84,7 +84,7 @@ export function ldexp({exponent, mantissa}) {
 }
 
 
-const isInt = (value) => value === parseInt(value);
+export const isInt = (value) => value === parseInt(value);
 
 function assertInt(value) {
     if (!isInt(value)) {
@@ -308,5 +308,3 @@ export function approx(value /*: Rat */, denom /*: Int */) {
 
     return simplify({num: proper.integer * denom + num, denom});
 }
-
-

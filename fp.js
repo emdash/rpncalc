@@ -275,10 +275,10 @@ export function asImmutableObject({
 	...properties.map(property)
     };
 
-    if (init !== undefined || init !== null) {
+    if (!(init === undefined || init === null)) {
 	return lift(init);
     } else if (constructors) {
-	return vtable.constructors;
+	return constructors.map(cons);
     }
 
     throw "Neither `init` nor `constructors` given";
@@ -321,22 +321,4 @@ export function reactor({init, methods, properties}, output, on_error) {
     };
 
     return actions;
-}
-
-// Some textbook stuff for counting change.
-function count(amount, coin, coins) {
-    if (amount >= coin) {
-	return count(amount - coin, coin, coins + 1);
-    } else {
-	return {amount, coins};
-    }
-}
-
-function change(amount, coins) {
-    if (coins.length > 0) {
-	const result = count(amount, coin[0], 0);
-	return [result.coins, ...change(result.amount, coins.slice(1))],
-    } else {
-	return [amount];
-    }
 }
