@@ -21,6 +21,7 @@ import {assert, debug, asImmutableObject} from './fp.js';
 import * as calc from './calc.js';
 import * as rat from './rat.js';
 import * as fp from './fp.js';
+import sets from './sets.js';
 import {UserError} from './error.js';
 
 // quick-and dirty helper to append an element to the document.
@@ -583,6 +584,58 @@ test("we can find arbitrary fractional aproximations", () => {
     );
 });
 
+
+test("sets and set operations", () => {
+    // Make sure overloading cmp works as expected.
+    const set = sets((a, b) => a - b);
+
+    // test insert
+    assertEq(set.insert(1).s, [1]);
+    assertEq(set.insert(1).insert(3, 2, 5).s, [1, 2, 3, 5]);
+
+    // test membership
+    assertEq(set.insert(1).has(1), true)
+    assertEq(set.insert(1, 3, 5, 7).has(5), true)
+    
+    // equality on the empty set
+    assert(set.eq(set));
+    assert(!set.eq(set.insert(1)));
+
+    // set insertion
+    assertEq(
+	set.insert(3, 4).insert(6, 5, 5, 6),
+	set.fromArray([3, 4, 6, 5])
+    );
+
+    // Test union
+    assertEq(
+	set.insert(3, 4, 5).union(set.insert(4, 5, 1, 7)),
+	set.insert(1, 3, 4, 5, 7)
+    );
+
+    // Test intersection
+    assertEq(
+	set.insert(3, 4, 5).intersect(set.insert(4, 5, 1, 7)),
+	set.insert(4, 5)
+    );
+
+    // Test difference
+    assertEq(
+	set.insert(1, 3, 4, 5, 7).diff(set.insert(1, 2, 3)),
+	set.insert(4, 5, 7)
+    );
+
+    // Test symmetric difference
+    assertEq(
+	set.insert(1, 3, 4, 5, 7).sdiff(set.insert(1, 2, 3)),
+	set.insert(2, 4, 5, 7)
+    );
+});
+
 window.rat = rat;
 window.accumulator = accumulator;
 window.calc = calc;
+window.fp = fp;
+window.sets = sets;
+window.set = sets();
+window.units = units;

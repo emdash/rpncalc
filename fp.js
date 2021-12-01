@@ -21,7 +21,7 @@
 
 // Helper for debugging in expressions.
 export function debug(expr, ...other) {
-    console.log("debug", expr, ...other);
+    console.trace("debug", expr, ...other);
     return expr;
 }
 
@@ -45,6 +45,12 @@ export function trap(f, err) {
 }
 
 
+// Allows us to throw from within an expression.
+export function raise(err) {
+    throw Err;
+};
+
+
 // Return a reversed copy of an array.
 export function reversed(array) {
     const ret = [...array];
@@ -52,32 +58,73 @@ export function reversed(array) {
     return ret;
 }
 
+// Monkey patch some useful methods into the standard library ****************/
 
-// Return a new object, applying func to every value in obj.
-export function objmap(func, obj) {
-    const ret = {};
-    let key;
+// Old-style function syntax used for correct handling of `this`.
+//
+// XXX: this has obnoxious side-effect that these methods appear as
+// attributes in the HTML inspector, making an otherwise clean DOM
+// tree look pretty cluttered and hard to read. At least in FireFox.
 
-    for (key in obj) {
-	if (obj.hasOwnProperty(key)) {
-	    ret[key] = func(obj[key]);
-	}
-    }
 
-    return ret;
+// Map over the values of an object.
+//
+// The keys cannot be changed, though we could support this, it would
+// make the common case more verbose.
+Object.prototype.map = function (func) {
+    return Object.fromEntries(Object.entries(this).map(
+	([key, value]) => [key, func(value, key)]
+    ));
 }
 
 
-// Flatten an object into a list of [name, value] pairs.
-export const flatten = (obj) => Object
-      .getOwnPropertyNames(obj)
-      .map((name) => [name, obj[name]]);
+// Convert object into an array of `[key, value]` pairs.
+//
+// This is just a wrapper around Object.entries.
+//
+// XXX: refactor: rename smth like "entries" or "items"?
+Object.prototype.flatten = function () {
+    return Object.entries(this);
+};
 
 
-// Monkey patch some useful methods into the standard library
-// Legacy function syntax used for correct handling of `this`.
-Object.prototype.map     = function (func) {return objmap(func, this);};
-Object.prototype.flatten = function ()     {return flatten(this);};
+// Zip the values of two objects with the same set of keys.
+//
+// We don't attempt to enforce that the two objects have the same
+// keyset.
+Object.prototype.zip = function (b) {
+    const a = this;
+    return Object.fromEntries(Object.keys(a).map(k => [k, [a[k], b[k]]]));
+};
+
+
+// Array-optimized version of zip
+//
+// Length will be the shorter of the two.
+Array.prototype.zip = function (b) {
+    const ret = [];
+    const end = Math.min(this.length, b.length);
+    for (let i = 0; i < end; i++) {
+	ret.push([this[i], b[i]]);
+    }
+    return ret;
+};
+
+
+// Shorthand for map(f).reduce(r)
+Array.prototype.mapreduce = function (f, r) { return this.map(f).reduce(r); };
+
+
+// Like python's `all` builtin.
+Array.prototype.all = function (func) {
+    return this.mapreduce(func, (a, x) => a && x);
+};
+
+
+// Like python's `any` builtin.
+Array.prototype.any = function (func) {
+    return this.mapreduce(func, (a, x) => a || b);
+}
 
 
 // Hoist methods from `module` into `slot` in the outer object.
@@ -175,48 +222,74 @@ export function undoable({init, methods, properties}) {
 }
 
 
-// Make our functional-style code work like immutable.js objects.
+// Convert our pure-functional API into an immutable object API.
 //
-// This makes writing unit tests / interactive debugging a lot more
-// ergonomic, since we can just chain method / property calls.
-export function asImmutableObject({init, methods, properties}) {
+// This makes testing and debugging a lot more ergonomic, since we can
+// just chain method calls to sequence operations.
+//
+// It becomes hard to compose objects once this function has been
+// applied. Consider it the last in a chain of combinators.
+export function asImmutableObject({
+    init,
+    methods,
+    properties,
+    constructors={}
+}) {
     // Lift a plain state value into an object instance.
     function lift(state) {
 	state.__proto__ = vtable;
 	return state;
     }
 
-    // Convert transformer method `m` for use in the prototype vtable.
+    // `lift()` the return value of a constructor function.
     //
-    // `this` is treated as the state, and the result is itself lifted
-    // to an instance.
+    // Like `method` below, but does not bind `this` to its argument.
+    const cons = c => (...args) => lift(c(...args));
+
+    // Convert mutator function `m` for use in the prototype vtable.
+    //
+    // `this` is treated as state, with result lifted to a new instance.
+    //
+    // Note: legacy function syntax is intential, in order to capture
+    // `this` correctly.
     const method = (m) => function (...args) {
 	return lift(m(this, ...args));
     };
 
-    // Convert property `p` for use in the prototype vtable.
+    // Convert query function `p` for use in the prototype vtable.
     //
-    // `this` is treated as state. Result is returned unchanged.
+    // `this` is treated as state, result is returned unmodified.
+    //
+    // Note: legacy function syntax is intential, in order to capture
+    // `this` correctly.
     const property = (p) => function (...args) {
 	return p(this, ...args);
     };
 
-    // Construct the vtable by wrapping method and property functions
-    // as described above.
+    // Construct the vtable by wrapping pure functions with
+    // appropriate combinators defined above.
     const vtable = {
-	lift,
+	lift, // XXX: refactor to remove 'lift', force use of constructors or init.
+	...constructors.map(cons),
 	...methods.map(method),
 	...properties.map(property)
     };
 
-    return lift(init);
+    if (init !== undefined || init !== null) {
+	return lift(init);
+    } else if (constructors) {
+	return vtable.constructors;
+    }
+
+    throw "Neither `init` nor `constructors` given";
 }
 
 
-// Transform our functional code into a stateful, reactive object.
+// Convert our pure-functional API into a stateful, reactive API.
 //
-// This is useful for hooking our functional code up to the DOM, and
-// you can view this function as a bare-bones redux store.
+// This bridges our functional code to the browser. You can think of
+// this as a bare-bones redux store. Like `asImmutableObject` above,
+// this is the last stop in a chain of combinators.
 //
 // When a mutator is called, the internal state is updated, and
 // `output` callback is invoked with the new state.
