@@ -585,6 +585,25 @@ test("we can find arbitrary fractional aproximations", () => {
 });
 
 
+test("we can count out denominations", () => {
+    // Make change for 79 cents using quarters, nickels, and dimes.
+    assertEq(
+	fp.change(79, [25, 10, 5]),
+	[3, 0, 0, 4]
+    );
+    
+    assertEq(
+	fp.change(80, [25, 10, 5]),
+	[3, 0, 1, 0]
+    );
+
+    assertEq(
+	fp.change(89, [25, 10, 5]),
+	[3, 1, 0, 4]
+    );
+});
+
+
 test("sets and set operations", () => {
     // Make sure overloading cmp works as expected.
     const set = sets((a, b) => a - b);

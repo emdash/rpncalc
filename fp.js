@@ -324,7 +324,7 @@ export function reactor({init, methods, properties}, output, on_error) {
 }
 
 // Some textbook stuff for counting change.
-function count(amount, coin, coins) {
+export function count(amount, coin, coins) {
     if (amount >= coin) {
 	return count(amount - coin, coin, coins + 1);
     } else {
@@ -332,10 +332,11 @@ function count(amount, coin, coins) {
     }
 }
 
-function change(amount, coins) {
+// Some textbook stuff for counting change.
+export function change(amount, coins) {
     if (coins.length > 0) {
-	const result = count(amount, coin[0], 0);
-	return [result.coins, ...change(result.amount, coins.slice(1))],
+	const result = count(amount, coins[0], 0);
+	return [result.coins, ...change(result.amount, coins.slice(1))];
     } else {
 	return [amount];
     }
