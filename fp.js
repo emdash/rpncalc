@@ -21,7 +21,7 @@
 
 // Helper for debugging in expressions.
 export function debug(expr, ...other) {
-    console.log("debug", expr, ...other);
+    console.trace("debug", expr, ...other);
     return expr;
 }
 
@@ -43,6 +43,12 @@ export function trap(f, err) {
 	return err;
     }
 }
+
+
+// Allows us to throw from within an expression.
+export function raise(err) {
+    throw Err;
+};
 
 
 // Return a reversed copy of an array.
