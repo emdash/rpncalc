@@ -20,7 +20,7 @@ import {debug, asImmutableObject} from './fp.js';
 
 
 // Default comparison should work on strings and numbers.
-function defaultCmp(a, b) {
+export function defaultCmp(a, b) {
     if (a < b) {
 	return -1;
     } else if (a > b) {
