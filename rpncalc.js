@@ -19,7 +19,8 @@
 "use strict";
 
 import {debug, reactor, reversed, undoable} from './fp.js';
-import {builtins, calculator, UserError} from './calc.js';
+import {builtins, calculator} from './calc.js';
+import {UserError} from './error.js';
 
 
 import {
@@ -76,6 +77,11 @@ const symbols = {
     f8:   math(fraction("x", "8")),
     f16:  math(fraction("x", "16")),
     finv: math(fraction("1", "x")),
+
+    usadd: "+",
+    ussub: "-",
+    usmul: "⨉",
+    usdiv: "÷",
 };
 
 function display(value) {
@@ -179,9 +185,8 @@ export function app(element) {
 		// ...or one of the onscreen layouts.
 		...layouts
 		    .flatten()
-		    .map(([key, _]) => ({
-			key,
-			label: key,
+		    .map(([key, {label}]) => ({
+			key, label,
 			action: () => actions.show(key)
 		    }))
 	    ),
@@ -217,7 +222,7 @@ export function app(element) {
 		    .map(
 			([name, value]) => {
 			    console.log(name, value);
-			    return button({}, name).handle(
+			    return button({"class": "symbol"}, name).handle(
 				"click", () => actions.push(name)
 			    );
 			}
@@ -283,6 +288,9 @@ export function app(element) {
     // Handles all letter keys.
     const letter = l => symbol(l, l, () => state.letter(l));
 
+    // Handles all unit keys.
+    const unit = name => key("unit", name, name, () => state.unit(name));
+
     // Handles all builtin operators in key layouts.
     const builtin = op => func(op, symbols[op] || op, () => state.operator(op));
 
@@ -315,6 +323,7 @@ export function app(element) {
     //
     // A token is one of:
     // - digit
+    // - physical unit unit
     // - builtin
     // - special
     // - placeholder
@@ -324,11 +333,28 @@ export function app(element) {
 	// XXX: regexes?
 	const digits = new Set("0123456789");
 	const letters = new Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+	const units = new Set([
+	    "in",
+	    "ft",
+	    "yd",
+	    "mi",
+	    "oz",
+	    "lb",
+	    "tsp",
+	    "tblsp",
+	    "floz",
+	    "cup",
+	    "pint",
+	    "qt",
+	    "gal"
+	]);
 
 	if (digits.has(token)) {
 	    return digit(token);
 	} else if (letters.has(token)) {
 	    return letter(token);
+	} else if (units.has(token)) {
+	    return unit(token);
 	} else if (token in builtins) {
 	    return builtin(token);
 	} else if (token in specials) {
@@ -341,7 +367,7 @@ export function app(element) {
     };
 
     // Create the 2D key layout for the given layout spec.
-    const layout = (...rows) => {
+    const layout = (label, ...rows) => {
 	// Split reach row into a list of items.
 	const items = rows.map(split).map(row => row.map(item));
 
@@ -360,12 +386,13 @@ export function app(element) {
 	// iterate over.
 	const keys = [...new Set(items.flat().filter(x => x.name !== "."))];
 
-	return {keys, areas};
+	return {label, keys, areas};
     };
 
     /* Standard Keypad layouts ***********************************************/
 
     const basic = layout(
+	"Basic",
 	"swap /   *    -",
 	"7    8   9    +",
 	"4    5   6    +",
@@ -374,6 +401,7 @@ export function app(element) {
     );
 
     const scientific = layout(
+	"Scientific",
 	"sin  cos  tan     hypot",
 	"log  ln   log10   log2",
 	"pow  exp  square  sqrt",
@@ -389,6 +417,7 @@ export function app(element) {
     );
 
     const frac = layout(
+	el("small", {}, fraction("a", "b")),
 	"f2    f4   f8      f16",
  	"float finv approx  frac",
 	"swap  fdiv fmul    fsub",
@@ -402,7 +431,31 @@ export function app(element) {
 	"0     0    fdenom  #",
     );
 
+
+    const us = (String.fromCodePoint(0x1F1FA) +
+		String.fromCodePoint(0x1F1F8));
+
+    const freedom_units = layout(
+	us,
+	"in   ft    yd     mi",
+	"oz   lb    tsp    tblsp",
+	"floz cup   pint   qt",
+	"gal  usdiv usmul  ussub",
+	"7    8     9      usadd",
+	"7    8     9      usadd",
+	"7    8     9      usadd",
+	"4    5     6      usadd",
+	"4    5     6      usadd",
+	"4    5     6      usadd",
+	"1    2     3      #",
+	"1    2     3      #",
+	"1    2     3      #",
+	"0    0     fnum   #",
+	"0    0     fdenom #"
+    );
+
     const a = layout(
+	"a",
 	"1 2 3 4 5 6 7 8 9 0",
 	"q w e r t y u i o p",
 	". a s d f g h j k l",
@@ -411,6 +464,7 @@ export function app(element) {
     );
 
     const A = layout(
+	"A",
 	"1 2 3 4 5 6 7 8 9 0",
 	"Q W E R T Y U I O P",
 	". A S D F G H J K L",
@@ -420,6 +474,7 @@ export function app(element) {
     
     // Layout consisting of all available functions.
     const fn = layout(
+	"fn",
         "abs    acos   acosh approx asin  asinh",
 	"atan   atan2  atanh cbrt   ceil  clz32",
 	"cos    cosh   denom exp    expm1 floor",
@@ -430,7 +485,14 @@ export function app(element) {
     );
 
     // These are the standard layouts
-    const layouts = {basic, scientific, frac, a, A, fn};
+    const layouts = {
+	basic,
+	scientific,
+	frac,
+	freedom_units,
+	a, A,
+	fn
+    };
 
     /* Keyboard input *******************************************************/
 

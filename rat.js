@@ -84,7 +84,7 @@ export function ldexp({exponent, mantissa}) {
 }
 
 
-const isInt = (value) => value === parseInt(value);
+export const isInt = (value) => value === parseInt(value);
 
 function assertInt(value) {
     if (!isInt(value)) {
@@ -92,6 +92,18 @@ function assertInt(value) {
     }
     return value;
 }
+
+
+// Tell if something is a rational or not.
+function assertRat(x) {
+    const {integer, num, denom} = x;
+    assertInt(num);
+    assertInt(denom);
+    if (integer !== undefined) {
+	throw Error("${x} is a proper fraction");
+    }
+}
+
 
 // euclid's algorithm for finding greatest common divider.
 export function gcd(a /*: int */, b /* :int */) /*: int */ {
@@ -296,5 +308,3 @@ export function approx(value /*: Rat */, denom /*: Int */) {
 
     return simplify({num: proper.integer * denom + num, denom});
 }
-
-

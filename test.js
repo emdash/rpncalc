@@ -18,8 +18,33 @@
 "use strict";
 
 import {assert, debug, asImmutableObject} from './fp.js';
-import * as calc from './calc.js';
-import * as rat from './rat.js';
+
+import * as calc   from './calc.js';
+import * as rat    from './rat.js';
+import * as fp     from './fp.js';
+import * as units  from './units.js';
+import sets        from './sets.js';
+import graphs      from './graphs.js';
+import {UserError} from './error.js';
+
+// Create class-like objects from accumulator and calculator modules.
+//
+// Since these are immutable, we only need one single, global
+// instance. There is no setup or tear-down.
+const accumulator = asImmutableObject(calc.accumulator);
+const calculator  = asImmutableObject(calc.calculator);
+
+// expose modules as globals for interactive debugging
+window.rat = rat;
+window.accumulator = accumulator;
+window.calc = calc;
+window.fp = fp;
+window.sets = sets;
+window.set = sets();
+window.graphs = graphs();
+window.graph = graphs();
+window.units = units;
+
 
 // quick-and dirty helper to append an element to the document.
 function append(html) {
@@ -62,7 +87,7 @@ function assertThrows(callback, except) {
     } catch (e) {
 	// UserError can be compared for direct equality, since
 	// they are globals.
-	if (e instanceof calc.UserError && e !== except) {
+	if (e instanceof UserError && e !== except) {
 	    throw new Error(`Assertion failed: ${e} !== ${except}`);
 	} else {
 	    // use stringify for comparison, since they are probably
@@ -71,13 +96,6 @@ function assertThrows(callback, except) {
 	}
     }
 }
-
-// Create class-like objects from accumulator and calculator modules.
-//
-// Since these are immutable, we only need one single, global
-// instance. There is no setup or tear-down.
-const accumulator = asImmutableObject(calc.accumulator);
-const calculator = asImmutableObject(calc.calculator);
 
 
 /* Test cases below **********************************************************/
@@ -553,7 +571,6 @@ test("basic arithmetic operations on fractions", () => {
     );
 });
 
-
 test("we can find arbitrary fractional aproximations", () => {
     assertEq(
 	rat.approx(rat.fromFloat(Math.PI), 64),
@@ -581,6 +598,175 @@ test("we can find arbitrary fractional aproximations", () => {
     );
 });
 
-window.rat = rat;
-window.accumulator = accumulator;
-window.calc = calc;
+test("we can count out denominations", () => {
+    // Make change for 79 cents using quarters, nickels, and dimes.
+    const quarter = {num: 25, denom: 100};
+    const dime    = {num: 10, denom: 100};
+    const nickel  = {num: 5,  denom: 100};
+    const penny   = {num: 1,  denom: 100};
+
+    const coins = [quarter, dime, nickel, penny];
+
+    assertEq(
+	units.change({num: 79, denom: 100}, coins),
+	[3, 0, 0, 4]
+    );
+    
+    assertEq(
+	units.change({num: 80, denom: 100}, coins),
+	[3, 0, 1, 0]
+    );
+
+    assertEq(
+	units.change({num: 89, denom: 100}, coins),
+	[3, 1, 0, 4]
+    );
+});
+
+test("sets and set operations", () => {
+    // Make sure overloading cmp works as expected.
+    const set = sets((a, b) => a - b);
+
+    // test insert
+    assertEq(set.insert(1).s, [1]);
+    assertEq(set.insert(1).insert(3, 2, 5).s, [1, 2, 3, 5]);
+
+    // test membership
+    assertEq(set.insert(1).has(1), true)
+    assertEq(set.insert(1, 3, 5, 7).has(5), true)
+    
+    // equality on the empty set
+    assert(set.eq(set));
+    assert(!set.eq(set.insert(1)));
+
+    // set insertion
+    assertEq(
+	set.insert(3, 4).insert(6, 5, 5, 6),
+	set.fromArray([3, 4, 6, 5])
+    );
+
+    // Test union
+    assertEq(
+	set.insert(3, 4, 5).union(set.insert(4, 5, 1, 7)),
+	set.insert(1, 3, 4, 5, 7)
+    );
+
+    // Test intersection
+    assertEq(
+	set.insert(3, 4, 5).intersect(set.insert(4, 5, 1, 7)),
+	set.insert(4, 5)
+    );
+
+    // Test difference
+    assertEq(
+	set.insert(1, 3, 4, 5, 7).diff(set.insert(1, 2, 3)),
+	set.insert(4, 5, 7)
+    );
+
+    // Test symmetric difference
+    assertEq(
+	set.insert(1, 3, 4, 5, 7).sdiff(set.insert(1, 2, 3)),
+	set.insert(2, 4, 5, 7)
+    );
+});
+
+test("graphs and graph operations", function () {
+    const graph = graphs();
+    // XXX: test stuff
+});
+
+test("basic calculations on units", () => {
+    const inches = units.inches;
+
+    assertEq(
+	inches.withDim(1, "ft").add(inches.withDim(1, "in")).using("in"),
+	{"in": 13}
+    );
+
+    assertEq(
+	inches.withDim(13, "in").using("ft", "in"),
+	{"ft": 1, "in": 1}
+    );
+
+    assertEq(
+	inches.withDim({num: 13, denom: 12}, "ft").using("ft", "in"),
+	{"ft": 1, "in": 1}
+    );
+    
+    assertEq(
+	inches
+	    .withDim(1, "in")
+	    .add(inches.withDim(2, "yd"))
+	    .add(inches.withDim(1, "ft"))
+	    .using("in", "hd"),
+	{"hd": 21, "in": 1}
+    );
+
+    assertEq(
+	inches
+	    .withDim({num: 11, denom: 2}, "mi")
+	    .using("yd"),
+	{"yd": 9680}
+    );
+
+    // test default unit conversions
+
+    // answer should be in miles, with fractional part
+    assertEq(
+	inches
+	    .withDim({num: 11, denom: 2}, "mi")
+	    .add(inches.withDim({num: 3, denom: 4}, "mi"))
+	    .valueOf(),
+	{mi: 6, frac: {num: 1, denom: 4}}
+    );
+
+    // answer should be in mi + yd
+    assertEq(
+	inches
+	    .withDim({num:11, denom: 2}, "mi")
+	    .add(inches.withDim(330, "yd"))
+	    .valueOf(),
+	{mi: 5, yd: 1210}
+    );
+
+    // answer should be in mi + ft
+    assertEq(
+	inches
+	    .withDim({num:11, denom: 2}, "mi")
+	    .add(inches.withDim(500, "ft"))
+	    .valueOf(),
+	{mi: 5, ft: 3140}
+    );
+
+    // should be in mi + ft + in
+    assertEq(
+	inches
+	    .withDim({num: 11, denom: 2}, "mi")
+	    .add(inches.withDim({num: 11, denom: 2}, "ft"))
+	    .add(inches.withDim({num: 7, denom: 4}, "in"))
+	    .valueOf(),
+	{mi: 5, ft: 2645, "in": 7, frac: {num: 3, denom: 4}}
+    );
+	
+    /*
+     * - 5 <lb>                 -> [5lb]         // lb unit gets applied to 5 scalar quantity
+     * - 5 <lb> <inch>          -> Error         // Pounds cannot be converted to inches (dimension mismatch)
+     * - 5 <lb> <ounce>         -> [(80oz)]      // Convert pounds to ounces
+     * - 5 <lb> 1 <ounce>       -> [(5lb) (1oz)] // Stack contains two distinct units of same dimension.
+     * Calculations
+     * - 5_1/2 <lb> 1/4 +       -> Error         // Cannot add scalar to pound (include unit).
+     * - 5_1/2 <lb> 1/4 <lb>  + -> [(5_3/4lb)]   // Units match, don't change units.
+     * - 5_1/2 <lb> 1 <ounce> + -> [(5lb 9oz)]   // Mixing ounces and pounds: convert to ounces, calculate, then simplify.
+     *                                           // Mixing units: only smallest unit is fractional, larger units are integer.
+     * - 1 qt 1/2 pt + 3tblsp + 2 div
+     *                                           // pints = 2 * qt + 1/2 = 2 *  + 1/2 = 2_1/2
+     // cups  = pints * 2 = 5
+     // tblsp = cups * 16 + 3 = 83
+     // 2 div > 41_1/2 tblsp, now start making change
+     // - count(41_1/2, 64, 32, 16)
+     // - [0, 1, 0, 9_1/2] 1pt 9_1/2 
+     */
+
+    /* 50 mi 1 h div fps as */
+    /* 42 mi 1 h div kph as */
+});
