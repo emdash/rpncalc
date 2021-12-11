@@ -23,46 +23,44 @@ import {debug} from './fp.js';
 /*** rendering helpers *****************************************************/
 
 
-// functional wrapper around DOM API.
+// Create a text node.
+export const t = text => document.createTextNode(text.toString())
+
+
+// Common code for both el, and ns.
+export function prepare_element(ret, attrs, children) {
+    // Copy attrs into the new instance.
+    attrs.flatten().forEach(
+        ([key, value]) => ret.setAttribute(key, attrs[key])
+    );
+
+    // Append all the child objects under this one, wrapping any
+    // non-dom values in a text node.
+    children
+        .map(c => (c instanceof Node) ? c : t(c))
+        .forEach(c => ret.appendChild(c));
+
+    return ret;
+}
+
+
+// Functional short-hands for the builtin DOM API.
 //
-// No virtual dom here, everything is direct.
-export function el(name, attrs, ...children) {
-    const ret = document.createElement(name);
-
-    for (let key in attrs) {
-	ret.setAttribute(key, attrs[key]);
-    }
-
-    for (let child of children) {
-	if (typeof child === "string") {
-	    ret.appendChild(document.createTextNode(child));
-	} else {
-	    ret.appendChild(child);
-	}
-    }
-
-    return ret;
-}
+// DOM elements are created and returned directly. This is not a
+// virtual DOM.
+export const el = (name, attrs, ...children) => prepare_element(
+    document.createElement(name),
+    attrs,
+    children
+);
 
 
-// namespaced version of above
-export const ns = (namespace) => (name, attrs, ...children) => {
-    const ret = document.createElementNS(namespace, name);
-
-    for (let key in attrs) {
-	ret.setAttribute(key, attrs[key]);
-    }
-
-    for (let child of children) {
-	if (typeof child === "string") {
-	    ret.appendChild(document.createTextNode(child));
-	} else {
-	    ret.appendChild(child);
-	}
-    }
-
-    return ret;
-}
+// Namespaced version of above, for extensions like SVG and MathML.
+export const ns = (namespace) => (name, attrs, ...children) => prepare_element(
+    document.createElementNS(namespace, name),
+    attrs,
+    children
+);
 
 
 // standard elements
@@ -104,7 +102,7 @@ function mitem(...items) {
 	}
 	return item;
     }
-    
+
     if (items.length === 1) {
 	return mapitem(items[0]);
     } else {
