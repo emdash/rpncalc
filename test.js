@@ -372,9 +372,9 @@ test("calculator can swap values at stack positions", () => {
 
     assertThrows(
 	() => calculator.exch(1, 0),
-	"Illegal: Invalid stack indices"
+        calc.overflow
     );
-    
+
     assertEq(
 	calculator
 	    .digit(4)
