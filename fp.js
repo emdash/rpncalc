@@ -127,19 +127,33 @@ Array.prototype.any = function (func) {
 }
 
 
-// Hoist methods from `module` into `slot` in the outer object.
-export const hoist_methods  = (slot, module) => module.methods.map(
-    (method) => (state, ...args) => ({
-	...state,
-	[slot]: method(state[slot], ...args)
-    })
-);
+// Embed one immutable object within another, under the named slot.
+function embed(obj, slot) {
+    const {
+        init,
+        methods,
+        properties,
+        constructors = {},
+    } = obj.__spec;
 
+    // These combinators lift the underlying method to our object type.
+    // They differ just in how the arguments are treated.
+    //
+    // - a constructor takes no state parameter, returns state.
+    // - a method takes a state parameter, returns state.
+    // - a property takes a state parameter, returns plain value.
+    const embed_cons   = c => (s, ...a) => ({...s, [slot]: c(...a)});
+    const embed_method = m => (s, ...a) => ({...s, [slot]: m(s[slot], ...a)});
+    const embed_prop   = p => (s, ...a) => p(s[slot], ...a);
 
-// Hoist properties from `module` into `slot`, a field in the outer object.
-export const hoist_props = (slot, module) => module.properties.map(
-    (prop) => (state, ...args) => prop(state[slot], ...args)
-);
+    return asImmutableObject({
+        methods: {
+            init: init && state => ({...state, [slot]: init}),
+            ...constructors.map(embed_cons),
+            ...methods.map(embed_method)
+        }, properties: properties.map(embed_prop),
+    };
+}
 
 
 // Make the underlying type "undoable".
@@ -161,7 +175,7 @@ export const hoist_props = (slot, module) => module.properties.map(
 // should be put in to the UX around saving / loading / expiring
 // history. There's a convenience to having persistent history, but
 // this has to be balanced against privacy and storage concerns.
-export function undoable({init, methods, properties}) {
+export function undoable(inner) {
     // Each method in `methods` will be wrapped with this function.
     //
     // This handles the argument wrangling, and will fold the previous
@@ -214,10 +228,10 @@ export function undoable({init, methods, properties}) {
     // the `undo`, `redo` methods.
     //
     // We wrap each property in `get` as described above.
-    return {
-	init:       {inner: init, history: [], undone: []},
-	methods:    {...methods.map(update), undo, redo},
-	properties: properties.map(get)
+    return embed(
+        {inner, 
+	init:    {inner: inner.init(), history: [], undone: []},
+	methods: {undo, redo},
     };
 }
 
@@ -229,12 +243,15 @@ export function undoable({init, methods, properties}) {
 //
 // It becomes hard to compose objects once this function has been
 // applied. Consider it the last in a chain of combinators.
-export function asImmutableObject({
-    init,
-    methods,
-    properties,
-    constructors={}
-}) {
+export function asImmutableObject(spec) {
+    const spec = {
+        init,
+        methods,
+        properties,
+        constructors={},
+        embedded={}
+    };
+
     // Lift a plain state value into an object instance.
     function lift(state) {
 	state.__proto__ = vtable;
@@ -269,7 +286,9 @@ export function asImmutableObject({
     // Construct the vtable by wrapping pure functions with
     // appropriate combinators defined above.
     const vtable = {
-	lift, // XXX: refactor to remove 'lift', force use of constructors or init.
+        // include the original typespec
+        __spec,
+	lift,
 	...constructors.map(cons),
 	...methods.map(method),
 	...properties.map(property)
@@ -322,3 +341,60 @@ export function reactor({init, methods, properties}, output, on_error) {
 
     return actions;
 }
+
+
+// A sum type that works with our conventions around immutability.
+//
+// Also provides some basic support for pattern matching.
+export function sum_t(typespecs) {
+    const variants = typespecs.map(asImmutableObject);
+    const lift     = tag => value => ({tag, value});
+    const wrap     = tag => f => (...args) => lift(tag)(f(...args));
+    const relift   = ([tag, value]) => {
+    });
+
+    // Dispatch based on the typestate of ourselves.
+    //
+    // Matches can be a plain object or a Map instance. This will
+    // throw if the matches isn't exhaustive.
+    const match = ({tag, value}) => matches => {
+        // XXX: handle wildcard patterns somehow?
+        if (!variants.every(x => typeof matches[x] === "function")) {
+            throw new Error("match is not exhaustive");
+        }
+        return matches[tag](variants[tag].lift(value));
+    };
+
+    // Dispatch over a pair of variant values.
+    //
+    // Matches must be a Map with an exhaustive set of [x, y]
+    // patterns.
+    //
+    // Each match should return a [tag, value] tuple.
+    const bimatch (a, b) => matches => {
+        const at = a.tag,
+              bt = b.tag,
+              av = variants[tag].lift(a),
+              bv = variants[tag].lift(b);
+
+        // XXX: match should be exhaustive over cross-product of
+        // (variants^2)
+        //
+        // Also counting wildcard patterns.
+        return relift(matches[[at, bt]](av, bv));
+    };
+
+    return {
+        methods: {match, bimatch, ...},
+        constructors: {
+            lift,
+            ...Object.fromEntries(
+                alternatives
+                    .flatten()
+                    .flatMap(([k, v]) => v.constructors.map(wrap(k)))
+            )
+        }
+    };
+}
+
+

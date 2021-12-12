@@ -20,8 +20,7 @@
 // I used the latest ES6 features to make this project a case-study in
 // Functional Programming.
 //
-// This module defines ADTs for the calculator's state. The UX
-// layer renders the resulting state. 
+// This module defines ADTs for the calculator's state.
 //
 // The idea is that a calculator is just a DFA you manually supply
 // with tokens. I realized that, since we are operating at human input
@@ -31,10 +30,8 @@
 //
 // With every user action, the entire calculator state and UI is
 // regenerated, rather than mutated in place. But this affords
-// preserving any prior states in the undo stack, which means that the
-// user need not fear a misplaced finger. The stack and history are
-// visible, so that the input can be audited for error, and errors can
-// be easily corrected.
+// preserving any prior states in the undo stack. The stack and
+// history are visible, so that the input can be audited for mistakes.
 //
 // That all sounds like a lot, so to further distill it: the whole
 // thing is a set of pure functions which operate on
