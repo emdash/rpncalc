@@ -1,17 +1,17 @@
 // (c) 2021 Brandon Lewis
 //
 // This file is part of rpncalc.
-// 
+//
 // rpncalc is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // rpncalc is distributed in the hope that it will be useful, but
 // WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with rpncalc.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -20,6 +20,11 @@
 import {assert, debug, asImmutableObject} from './fp.js';
 import * as calc from './calc.js';
 import * as rat from './rat.js';
+import * as fp from './fp.js';
+
+
+/*** Unit Test Framework *****************************************************/
+
 
 // quick-and dirty helper to append an element to the document.
 function append(html) {
@@ -65,9 +70,15 @@ function assertThrows(callback, except) {
 	if (e instanceof calc.UserError && e !== except) {
 	    throw new Error(`Assertion failed: ${e} !== ${except}`);
 	} else {
-	    // use stringify for comparison, since they are probably
-	    // strings.
-	    assertEq(e, except);
+            if (e instanceof Error && except instanceof Function) {
+                if (!(e instanceof except)) {
+                    throw new Error(`Assertion failed: ${e} !== ${except}`);
+                }
+            }  else {
+	        // use stringify for comparison, since they are probably
+	        // strings.
+	        assertEq(e, except);
+            }
 	}
     }
 }
@@ -80,11 +91,52 @@ const accumulator = asImmutableObject(calc.accumulator);
 const calculator = asImmutableObject(calc.calculator);
 
 
-/* Test cases below **********************************************************/
+/*** Test cases ****************************************************************/
+
 
 test("test the test framework", () => {
-    this_failure_is_expected;
+    assertThrows(() => foo, ReferenceError);
 });
+
+
+/* Iterators chaining ********************************************************/
+
+test("test iterator chaining", () => {
+    assertEq(
+        [1, 2, 3]
+            .values()
+            .filter(x => !!(x & 1))
+            .map(x => x * 2)
+            .reduce((x, y) => x + y),
+        8
+    );
+
+    assertEq(
+        new Set([1, 2, 2, 3, 3])
+            .filter(x => !!(x & 1))
+            .map(x => x * 2)
+            .reduce((x, y) => x + y),
+        8
+    );
+
+    assertEq(
+        new Map([["foo", 1], ["bar", 2], ["baz", 3]])
+            .map(([k, v]) => v)
+            .filter(x => !!(x & 1))
+            .map(v => 2 * v)
+            .reduce((x, y) => x + y),
+        8
+    );
+
+    // assertThrows(
+    //     () => [].values().reduce((x, y) => x + y),
+    //     TypeError
+    // );
+});
+
+
+/* Accumulator ***************************************************************/
+
 
 test("accumulator.is_empty()", () => {
     assert(accumulator.isEmpty());
@@ -278,6 +330,10 @@ test("accumulator can produce fractions", () => {
     );
 });
 
+
+/* Caluclator ****************************************************************/
+
+
 test("calculator is initalized correctly", () => {
     assertEq(
 	calculator,
@@ -394,6 +450,10 @@ test("calculator can swap values at stack positions", () => {
     );
 });
 
+
+/* Floating point manipulation ***********************************************/
+
+
 test("floating point composition", () => {
     assertEq(rat.ldexp({exponent:  2, mantissa: 1}),  4);
     assertEq(rat.ldexp({exponent: -3, mantissa: 1}), 0.125);
@@ -415,6 +475,10 @@ test("floating composition and decomposition are consistent", () => {
     );
 });
 
+
+/* GCD ***********************************************************************/
+
+
 test("euclid's algorithm for gcd", () => {
     assertEq(rat.gcd(1, 1),  1);
     assertEq(rat.gcd(2, 1),  1);
@@ -422,6 +486,10 @@ test("euclid's algorithm for gcd", () => {
     assertEq(rat.gcd(45, 15), 15);
     assertEq(rat.gcd(66, 77), 11);
 });
+
+
+/* Fractions *****************************************************************/
+
 
 test("we can simplify fractions", () => {
     assertEq(
@@ -483,7 +551,7 @@ test("we can convert between rationals and floats", () => {
     // BigInt so that the numerator and denominator will not overflow
     // the 53-bits of integer precision during multiplication or
     // division. I just don't have time to do it now.
-    
+
     assertEq(
 	rat.approx(rat.fromFloat(12.7), 10),
 	{num: 127, denom: 10}
@@ -553,7 +621,6 @@ test("basic arithmetic operations on fractions", () => {
     );
 });
 
-
 test("we can find arbitrary fractional aproximations", () => {
     assertEq(
 	rat.approx(rat.fromFloat(Math.PI), 64),
@@ -581,6 +648,11 @@ test("we can find arbitrary fractional aproximations", () => {
     );
 });
 
+
+/* Expose Modules for interactive debugging ******************************/
+
+
 window.rat = rat;
 window.accumulator = accumulator;
 window.calc = calc;
+window.fp = fp;
