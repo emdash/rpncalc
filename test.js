@@ -22,6 +22,15 @@ import * as calc from './calc.js';
 import * as rat from './rat.js';
 import * as fp from './fp.js';
 
+// some helpers to simplify writing test cases.
+//
+// these wrap primitive values in a tag, as appropriate.
+const tag = calc.tag;
+const i   = value => tag("int",   BigInt(value));
+const f   = value => tag("float", parseFloat(value));
+const r   = value => tag("rat",   value);
+const w   = value => tag("word",  value);
+
 
 /*** Unit Test Framework *****************************************************/
 
@@ -46,15 +55,17 @@ function test(name, callback) {
     }
 }
 
+
 // Deep-compare two values for equality, asserting if the values do
 // not match.
 function assertEq(a, b) {
     // XXX: need a less brittle way to achieve deep equality
-    const repr_a = JSON.stringify(a),
-	  repr_b = JSON.stringify(b);
+    const repr_a = fp.stringify(a, 2),
+	  repr_b = fp.stringify(b, 2);
 
     if (repr_a !== repr_b) {
-	throw new Error(`Assertion failed: \n${repr_a}\n!==\n${repr_b}`);
+        console.log("Assertion Failed:", a, b);
+	throw new Error(`Assertion failed. See console output.`);
     }
 }
 
@@ -128,10 +139,10 @@ test("test iterator chaining", () => {
         8
     );
 
-    // assertThrows(
-    //     () => [].values().reduce((x, y) => x + y),
-    //     TypeError
-    // );
+    assertThrows(
+        () => [].values().reduce((x, y) => x + y),
+        TypeError
+    );
 });
 
 
@@ -217,18 +228,18 @@ test("accumulator can produce values", () => {
     assertThrows(() => accumulator.value(), calc.empty_accum);
 
     assertEq(
-	accumulator.lift({type: "dec", val: 4}).value(),
-	4
+	accumulator.lift({type: "dec", val: 4n}).value(),
+	i(4)
     );
 
     assertEq(
 	accumulator.lift({type: "float", val: {integer: 4, frac: 123}}).value(),
-	4.123
+	f(4.123)
     );
 
     assertEq(
 	accumulator.lift({type: "var", val: "abc"}).value(),
-	"abc"
+	w("abc")
     );
 });
 
@@ -308,17 +319,17 @@ test("accumulator handles num token correctly", () => {
 test("accumulator can produce fractions", () => {
     assertEq(
 	accumulator.digit(3).denom().digit(4).value(),
-	{num: 3, denom: 4}
+	r({num: 3, denom: 4})
     );
 
     assertEq(
 	accumulator.digit(3).digit(4).denom().digit(5).digit(6).value(),
-	{num: 34, denom: 56}
+	r({num: 34, denom: 56})
     );
 
     assertEq(
 	accumulator.digit(5).num().digit(3).denom().digit(4).value(),
-	rat.fromProper({integer: 5, num: 3, denom: 4})
+	r(rat.fromProper({integer: 5, num: 3, denom: 4}))
     );
 
     assertEq(
@@ -326,7 +337,7 @@ test("accumulator can produce fractions", () => {
 	    .denom()
 	    .digit(1).digit(2).digit(7)
 	    .value(),
-	{num: 54, denom: 127}
+	r({num: 54, denom: 127})
     );
 });
 
@@ -338,7 +349,6 @@ test("calculator is initalized correctly", () => {
     assertEq(
 	calculator,
 	{
-	    ops: calc.builtins,
 	    stack: [],
 	    tape: [],
 	    defs: calc.constants,
@@ -352,7 +362,6 @@ test("calculator accepts digits", () => {
     assertEq(
 	calculator.digit(4),
 	{
-	    ops: calc.builtins,
 	    stack: [],
 	    tape: [],
 	    defs: calc.constants,
@@ -364,9 +373,8 @@ test("calculator accepts digits", () => {
     assertEq(
 	calculator.digit(4).enter(),
 	{
-	    ops: calc.builtins,
-	    stack: [4],
-	    tape: [4],
+	    stack: [i(4)],
+	    tape: [i(4)],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
@@ -376,15 +384,14 @@ test("calculator accepts digits", () => {
 
 test("calculator can perform operations", () => {
     assertEq(
-	calculator
+	debug(calculator
 	    .digit(4)
 	    .enter()
 	    .digit(5)
-	    .operator("add"),
+	    .operator("add")),
 	{
-	    ops: calc.builtins,
-	    stack: [9],
-	    tape: [4, 5, "add"],
+	    stack: [i(9)],
+	    tape: [i(4), i(5), "add"],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
@@ -399,15 +406,15 @@ test("calculator can perform operations", () => {
 	    .digit(5)
 	    .operator("add"),
 	{
-	    ops: calc.builtins,
-	    stack: [15],
-	    tape: [10, 5, "add"],
+	    stack: [i(15)],
+	    tape: [i(10), i(5), "add"],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
 	}
     );
 });
+
 
 test("calculator can swap values at stack positions", () => {
     assertEq(
@@ -417,9 +424,8 @@ test("calculator can swap values at stack positions", () => {
 	    .digit(5)
 	    .exch(1, 0),
 	{
-	    ops:calc.builtins,
-	    stack: [5, 4],
-	    tape: [4, 5, "exch(1, 0)"],
+	    stack: [i(5), i(4)],
+	    tape: [i(4), i(5), "exch(1, 0)"],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
@@ -440,9 +446,8 @@ test("calculator can swap values at stack positions", () => {
 	    .exch(-1, -2)
 	    .operator("sub"),
 	{
-	    ops: calc.builtins,
-	    stack: [1],
-	    tape: [4, 5, "exch(1, 0)", "sub"],
+	    stack: [i(1)],
+	    tape: [i(4), i(5), "exch(1, 0)", "sub"],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
