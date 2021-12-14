@@ -67,9 +67,12 @@
 import {
     debug,
     assert,
-    undoable,
+    assertInt,
+    coallate,
     hoist_methods,
     hoist_props,
+    raise,
+    undoable,
 } from './fp.js';
 
 
