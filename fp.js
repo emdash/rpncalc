@@ -119,6 +119,107 @@ export const hoist_props = (slot, module) => module.properties.map(
 );
 
 
+/*** Iterator functions ******************************************************/
+
+const reduce_empty_seq = new TypeError(
+    "ireduce of empty sequence with no initial value"
+);
+
+
+// Iterator implementation of map
+const imap = function* (f) {
+    for (const value of this) {
+        yield f(value, "imap");
+    }
+};
+
+// Iterator implementation of filter
+const ifilter = function* (f) {
+    for (const value of this) {
+        if (f(value)) {
+            yield value;
+        }
+    }
+};
+
+// Iterator implementation of reduce
+function ireduce(f, init) {
+    const first = this.next();
+
+    if (first.done) {
+        if (init === undefined) {
+            throw reduce_empty_seq;
+        }
+        return init;
+    }
+
+    let accum = (init === undefined)
+          ? first.value
+          : f(init, first.value);
+
+    for (let next of this) {
+        accum = f(accum, next);
+    }
+
+    return accum;
+}
+
+
+// Hack to monkey-patch builtin collection iterators with expected
+// operations.
+function monkeyPatchIter(collection) {
+    // Hack to find the actual iterator prototype for the collection.
+    const proto = (new collection)[Symbol.iterator]().__proto__;
+
+    // patch in our methods
+    proto.map = imap;
+    proto.filter = ifilter;
+    proto.reduce = ireduce;
+}
+
+function monkeyPatchCollections() {
+    monkeyPatchIter(Array);
+    monkeyPatchIter(Map);
+    monkeyPatchIter(Set);
+
+    Map.prototype.map = function (...a) {
+        return this.entries().map(...a);
+    };
+
+    Map.prototype.filter = function (...a) {
+        return this.entries().filter(...a);
+    };
+
+    Map.prototype.reduce = function (...a) {
+        return this.entries().reduce(...a);
+    };
+
+    Set.prototype.map = function (...a) {
+        return this.values().map(...a);
+    };
+
+    Set.prototype.filter = function (...a) {
+        return this.values().filter(...a);
+    };
+
+    Set.prototype.reduce = function (...a) {
+        return this.values().reduce(...a);
+    };
+
+    // special hack for generators
+    const gen = (function* () { yield 1;})();
+    const proto = gen.__proto__.__proto__;
+    proto.map = imap;
+    proto.filter = ifilter;
+    proto.reduce = ireduce;
+};
+
+
+// array defines these, but Map / Set don't.
+monkeyPatchCollections();
+
+
+
 // Make the underlying type "undoable".
 //
 // Factor out history management from business logic.
