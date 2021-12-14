@@ -71,7 +71,9 @@ import {
     coallate,
     hoist_methods,
     hoist_props,
+    parse,
     raise,
+    stringify,
     undoable,
 } from './fp.js';
 
@@ -97,127 +99,285 @@ export const extra_num       = new IllegalToken("Already in numerator.");
 export const extra_denom     = new IllegalToken("Already in denominator.");
 export const not_a_digit     = new IllegalToken("Not a digit.");
 
-/*** Calculator business logic ********************************************/
+
+/*** Polymorphic Dispatch *************************************************/
+
+/* Stack Value Tagging *******************************************************/
 
 
-// This section represents the calculator itself, which is really a
-// simple virtual machine.
-
-
-// Implement a built-in calculator function or operator.
+// Stack values are a tagged union. Informally,
 //
-// Wraps `func()` such that it is called on a stack of arguments,
-// using the specified number of elements.
+// type Value =
+//    | {tag: "int",   value:  BigInt}
+//    | {tag: "float", value:  Number}
+//    | {tag: "rat",   value: rat.Rat};
 //
-// If the stack does not contain `arity` elements, then "stack
-// underflow" is thrown.
-function builtin(arity, func) {
-    if (arity === null) {
-	// Null arity indicates the function is variadic and consumes the
-	// whole stack, so return a stack containing only the result.
-	return (stack) => [func(...stack)];
-    } else {
-	// Otherwise we need to consume just the arguments we need.
-	return (stack) => {
-	    if (stack.length >= arity) {
-		// the index on the stack where the operands begin.
-		const pivot = stack.length - arity;
-		const args = stack.slice(pivot);
-		return [...stack.slice(0, pivot), func(...args)];
-	    } else {
-		throw underflow;
-	    }
-	};
+// type Tag = "int" | "float" | "rat";
+//
+export const tag = (tag,  value)  => ({tag, value});
+const gettag     = ({tag, value}) =>   tag;
+const getval     = ({tag, value}) => value;
+
+
+/* Polymorphic Dispatch Helpers **********************************************/
+
+
+/**
+ * This is a wrapper around map that internally converts keys to JSON
+ * strings.
+ *
+ * The Map builtin is useless because it can't override
+ * key equality.
+ *
+ * So, while a Map key can be any an object, you can't ever *fetch* an
+ * object key, unless it is the exact same instance.
+ */
+function dispatchTable(items) {
+    debug(items);
+    const data = new Map(items.map(([k, v]) => [stringify(k), v]));
+
+    const has     = key    => data.has(stringify(key));
+    const get     = key    => data.get(stringify(key));
+    const entries = ()     => data.map(([k, v]) => [parse(k), v]);
+    const map     = (f)    => entries().map(f);
+    const filter  = (f)    => entries().filter(f);
+    const reduce  = (f, i) => entries().reduce(f, i);
+
+    return {entries, has, get, filter, map, reduce};
+}
+
+
+// Define `name` name over all supported types.
+const poly_unop = (name, primF, ratF) => [
+    [[name, ["float"]], ["float", primF]],
+    [[name, ["rat"]],   [ "rat",   ratF]],
+];
+
+// Define `name` over the cross-product of all supported types.
+//
+// In general:
+// - [int,  float] -> float
+// - [float,  int] -> float
+// - [_,      rat] -> rat
+// - [rat,      _] -> rat
+const poly_binop = (name, primF, ratF) => [
+    [[name, ["int",     "int"]], ["int",             primF                                  ]],
+    [[name, ["int",   "float"]], ["float", (x, y) => primF(             x,    parseFloat(y))]],
+    [[name, ["int",     "rat"]], ["rat",   (x, y) => ratf(  rat.fromInt(x),              y) ]],
+    [[name, ["float",   "int"]], ["float", (x, y) => primF(             x,    parseFloat(y))]],
+    [[name, ["float", "float"]], ["float",           primF                                  ]],
+    [[name, ["float",   "rat"]], ["rat",   (x, y) => ratF(rat.fromFloat(x),              y) ]],
+    [[name, ["rat",     "int"]], ["rat",   (x, y) => ratF(              x,   rat.fromInt(y))]],
+    [[name, ["rat",   "float"]], ["rat",   (x, y) => ratF(              x, rat.fromFloat(y))]],
+    [[name, ["rat",     "rat"]], ["rat",             ratF                                   ]],
+];
+
+// Define `f${denom}`, which divides its argument by denom, returning rat.
+//
+// In genaral: [_] -> rat
+const divisor = d => {
+    assertInt(d);
+
+    const name = `f${d}`;
+    const denom = rat.fromInt(d);
+
+    return [
+        [[name, ["int"]],   ["rat", x => rat.div(frat.fromInt(x),  denom)]],
+        [[name, ["float"]], ["rat", x => rat.div(rat.fromFloat(x), denom)]],
+        [[name, ["rat"]],   ["rat",      rat.div]],
+    ];
+};
+
+// Define `name` in terms of `f: float -> float`, preserving original type.
+//
+// In general:
+// - int | rat -> rat,
+// - float     -> float
+const poly_math = (name, f) => [
+    [[name, ["int"]],   ["rat",   x =>               f( parseFloat(x))]],
+    [[name, ["float"]], ["float",                    f]],
+    [[name, ["rat"]],   ["rat",   x => rat.fromFloat(f(rat.toFloat(x)))]],
+];
+
+// Like above, but for binary operations.
+//
+// In general:
+// - [float, float] -> float
+// - [float,   rat] -> float
+// - [rat,     rat] -> rat
+const poly_binmath = (name, f) => {
+    const tf = rat.toFloat;
+    const ff = rat.fromFloat;
+    return [
+        [[name, ["float", "float"]], ["float", f                             ]],
+        [[name, ["float",   "rat"]], ["float", (x, y) => f(x, tf(y))         ]],
+        [[name, ["rat",   "float"]], ["rat",   (x, y) => ff(f(tf(x), y))     ]],
+        [[name, ["rat",     "rat"]], ["rat",   (x, y) => ff(f(tf(x), tf(y))) ]],
+    ];
+};
+
+// Define `name` in terms of `f` for the given type only.
+const mono_binop = (name, tag, f) => [[name, [tag, tag]], [tag, f]];
+const mono_unop  = (name, tag, f) => [[name, [tag]],      [tag, f]];
+
+// Dispatch Table
+//
+// Function application indexes into this table. If lookup fails, then
+// the function is undefined for the given types. If application
+// succeeds, then the result is tagged using the return type tag.
+//
+// dispatch: Map<Signature, [Ret, Func]>, where
+//   Signature: [Name, [Tag]],
+//   Name:      String,                  // the function's user-visible identifier
+//   Tag:       "int" | "float" | "rat", // Type tag
+//   Ret:       Tag                      // Return type tag
+//   Func:      (...args: [Any]) => Any  // Function which implements the operation.
+export const dispatch = window.dispatch = dispatchTable([
+    // Universal Unary Functions
+    ...poly_unop("abs",    Math.abs,              rat.abs),
+    ...poly_unop("inv",    x => 1 / x,            rat.inv),
+    ...poly_unop("neg",    x =>    -x,            rat.neg),
+    ...poly_unop("square", x => x * x, x => rat.mul(x, x)),
+
+    // Universal Binary Functions
+    ...poly_binop("add", (x, y) => x + y, rat.add),
+    ...poly_binop("sub", (x, y) => x - y, rat.sub),
+    ...poly_binop("mul", (x, y) => x * y, rat.mul),
+    ...poly_binop("div", (x, y) => x / y, rat.div),
+
+    // Scientific operations
+    ...poly_math("acos",   Math.acos),
+    ...poly_math("asin",   Math.asin),
+    ...poly_math("atan",   Math.atan),
+    ...poly_math("atan2",  Math.atan2),
+    ...poly_math("ceil",   Math.ceil),
+    ...poly_math("cos",    Math.cos),
+    ...poly_math("exp",    Math.exp),
+    ...poly_math("floor",  Math.floor),
+    ...poly_math("fround", Math.fround),
+    ...poly_math("ln",     Math.ln),
+    ...poly_math("sin",    Math.sin),
+    ...poly_math("sqrt",   Math.sqrt),
+    ...poly_math("tan",    Math.tan),
+    ...poly_math("log10",  Math.log10),
+    ...poly_math("log2",   Math.log2),
+    ...poly_math("log1p",  Math.log1p),
+    ...poly_math("expm1",  Math.expm1),
+    ...poly_math("cosh",   Math.cosh),
+    ...poly_math("sinh",   Math.sinh),
+    ...poly_math("tanh",   Math.tanh),
+    ...poly_math("acosh",  Math.acosh),
+    ...poly_math("asinh",  Math.asinh),
+    ...poly_math("atanh",  Math.atanh),
+    ...poly_math("cbrt",   Math.cbrt),
+    ...poly_binmath("log", Math.log),
+    ...poly_binmath("pow", Math.pow),
+
+    // Divide by fixed integer constant
+    ...divisor(2),
+    ...divisor(4),
+    ...divisor(8),
+    ...divisor(16),
+
+    // Type coercion functions
+    mono_unop("float", "rat",   rat.toFloat),
+    mono_unop("float", "int",   parseFloat),
+    mono_unop("frac",  "int",   rat.fromInt),
+    mono_unop("frac",  "float", rat.fromFloat),
+
+    // Special cases.
+    [["random", []],                 ["float", Math.random]],
+    [["trunc",  ["float", "float"]], ["float",  Math.trunc]],
+    [["sign",   ["float"]],          ["float",   Math.sign]],
+    [["approx", ["rat", "float"]],   ["rat",    rat.approx]],
+]);
+
+
+// index dispatch table by argument tuple
+const by_args = coallate(
+    dispatch
+        .entries()
+        .map(([[name, args], [ret, f]]) => [args, name])
+);
+
+// index dispatch table by function name
+const by_name = coallate(
+    dispatch
+        .entries()
+        .map(([[name, args], [ret, f]]) => [name, [args, ret, f]])
+);
+
+
+// require that seq be empty, or all the same value.
+// - if seq is empty, returns empty.
+// - if seq is nonempty, and all elements are the same, returns this value.
+// - if seq is nonempty, and all elements are not equal, throws.
+const requireEqual = window.requireEqual = (seq, empty, err) =>
+      (seq.length === 0)
+      ? empty
+      : (seq.length === 1)
+      ? seq[0]
+      : seq.reduce((p, n) => (p !== n) ? raise(err) : n);
+
+// the arity of each function
+const arities = (window.arities = coallate(
+    dispatch
+        .entries()
+        .map(([[name, args], [ret, f]]) => [name, args.length])
+)).map(
+    a => requireEqual(a, 0, "inconsistent arity")
+);
+
+// split `arity` operands from stack, and return both pieces.
+const split = (stack, arity) => {
+    const pivot = stack.length - arity;
+    const args  = stack.slice(pivot);
+    const rest  = stack.slice(0, pivot);
+    return {rest, args};
+}
+
+// true if stack configuration matches expected
+const check = (args, expected) => (args.length !== expected.length)
+      && (args
+          .map(gettag)
+          .zip(expected)
+          .every(([got, expected]) => got === expected));
+
+// return the set of valid operations for the given stack configuration
+export const valid = stack => {
+    const got = split(stack).args;
+    return by_args
+        .flatten()
+        .filter(([expected,    _]) => check(got, expected))
+        .map(   ([       _, name]) => name)
+};
+
+// apply a function to the given stack
+export const apply = (stack, name) => {
+    const arity        = arities[name];
+    const {rest, args} = split(stack, arity);
+    const tags         = args.map(gettag);
+    const vals         = args.map(getval);
+
+    if (dispatch.has([name, tags])) {
+        const [ret, func] = dispatch.get([name, tags]);
+        return [...rest, tag(ret, debug(func(...vals)))];
     }
-}
 
-
-// Special case of above for constants.
-const constant = (c) => builtin(0, () => c);
-
-
-// Placeholder for unimplemented functions.
-//
-// Ideally, no usage of this ever gets committed, but it is useful
-// when developing new features, so keep it here.
-const unimplemented = (n, name) => builtin(0, () => {
+    // tbd: more informative error message;
     throw not_implemented;
-});
-
-
-const divisor = d => x => rat.mul(rat.promote(x), {num: 1, denom: d});
-
-
-// Dispatch table for stack operations.
-export const builtins = {
-    add:     builtin(2, (x, y) => x + y),
-    sub:     builtin(2, (x, y) => x - y),
-    mul:     builtin(2, (x, y) => x * y),
-    div:     builtin(2, (x, y) => x / y),
-    square:  builtin(1, (x) => x * x),
-
-    frac:    builtin(1, rat.fromFloat),
-    float:   builtin(1, rat.toFloat),
-    approx:  builtin(2, rat.approx),
-    f2:      builtin(1, divisor(2)),
-    f4:      builtin(1, divisor(4)),
-    f8:      builtin(1, divisor(8)),
-    f16:     builtin(1, divisor(16)),
-    fadd:    builtin(2, rat.promoted(rat.add)),
-    fsub:    builtin(2, rat.promoted(rat.sub)),
-    fmul:    builtin(2, rat.promoted(rat.mul)),
-    fdiv:    builtin(2, rat.promoted(rat.div)),
-    finv:    builtin(1, rat.promoted(rat.inv)),
-
-
-    abs:     builtin(1, Math.abs),
-    acos:    builtin(1, Math.acos),
-    asin:    builtin(1, Math.asin),
-    atan:    builtin(1, Math.atan),
-    atan2:   builtin(1, Math.atan2),
-    ceil:    builtin(1, Math.ceil),
-    clz32:   builtin(1, Math.clz32),
-    cos:     builtin(1, Math.cos),
-    exp:     builtin(1, Math.exp),
-    floor:   builtin(1, Math.floor),
-    imul:    builtin(2, Math.imul),
-    fround:  builtin(1, Math.fround),
-    ln:      builtin(1, Math.log),
-    log:     builtin(2, (x, y) => Math.log(x) / Math.log(y)),
-    max:     builtin(null, Math.max),
-    min:     builtin(null, Math.min),
-    pow:     builtin(2, Math.pow),
-    random:  builtin(0, Math.random),
-    round:   builtin(1, Math.round),
-    sin:     builtin(1, Math.sin),
-    sqrt:    builtin(1, Math.sqrt),
-    tan:     builtin(1, Math.tan),
-    log10:   builtin(1, Math.log10),
-    log2:    builtin(1, Math.log2),
-    log1p:   builtin(1, Math.log1p),
-    expm1:   builtin(1, Math.expm1),
-    cosh:    builtin(1, Math.cosh),
-    sinh:    builtin(1, Math.sinh),
-    tanh:    builtin(1, Math.tanh),
-    acosh:   builtin(1, Math.acosh),
-    asinh:   builtin(1, Math.asinh),
-    atanh:   builtin(1, Math.atanh),
-    hypot:   builtin(null, Math.hypot),
-    trunc:   builtin(2, Math.trunc),
-    sign:    builtin(2, Math.sign),
-    cbrt:    builtin(2, Math.cbrt),
-    LOG2E:   constant(Math.LOG2E),
-    LOG10E:  constant(Math.LOG10E),
-    LN2:     constant(Math.LN2),
-    LN10:    constant(Math.LN10),
-    SQRT2:   constant(Math.SQRT2),
-    SQRT1_2: constant(Math.SQRT1_2)
-}
+};
 
 // Define default the table of constants.
 export const constants = {
-    "\u{1D486}": Math.E,
-    "\u{1D70B}": Math.PI,
+    "\u{1D486}": tag("float", Math.E),
+    "\u{1D70B}": tag("float", Math.PI),
+    LOG2E:       tag("float", Math.LOG2E),
+    LOG10E:      tag("float", Math.LOG10E),
+    LN2:         tag("float", Math.LN2),
+    LN10:        tag("float", Math.LN10),
+    SQRT2:       tag("float", Math.SQRT2),
+    SQRT1_2:     tag("float", Math.SQRT1_2)
 };
 
 
@@ -320,11 +480,11 @@ export const accumulator = (function () {
     // represent a meaningful value.
     function value({type, val}) { switch (type) {
 	case "empty":  throw  empty_accum;
-	case "dec":    return val;
-	case "float":  return parseFloat(`${val.integer}.${val.frac}`);
-	case "var":    return val;
+	case "dec":    return tag("int", BigInt(val));
+	case "float":  return tag("float", parseFloat(`${val.integer}.${val.frac}`));
+	case "var":    return tag("word", val);
 	case "num":    throw  incomplete_frac;
-	case "denom":  return rat.fromProper(val);
+	case "denom":  return tag("rat", rat.fromProper(val));
     }; }
 
     // Return the current "display contents" of the accumulator.
@@ -393,7 +553,6 @@ export const accumulator = (function () {
 // the opposite, I would prefer to see the stack trace.
 export const calculator = (function () {
     const init = {
-	ops: builtins,
 	stack: [],
 	tape: [],
 	defs: constants,
@@ -431,7 +590,7 @@ export const calculator = (function () {
 
     // Factor out auto-enter logic into this combinator.
     const auto_enter = (f) => (state, ...rest) => f(enter(state), ...rest);
-    
+
     // Implement the family exchange (AKA swap) operations.
     //
     // Negative indices are used for indexing from the top of the
@@ -452,7 +611,7 @@ export const calculator = (function () {
 	let stack = [...state.stack];
 	stack[A] = val_b;
 	stack[B] = val_a;
-	
+
 	return {...state, stack, tape};
     });
 
@@ -463,12 +622,7 @@ export const calculator = (function () {
 	    "Accumulator must be empty."
 	);
 
-	assert(
-	    operator in state.ops,
-	    "Illegal Operator: ${operator}."
-	);
-
-	const stack = state.ops[operator](state.stack);
+	const stack = apply(state.stack, operator);
 	const tape = [...state.tape, operator];
 	return {...state, stack, tape};
     });
@@ -510,7 +664,7 @@ export const calculator = (function () {
     function show(state, showing) {
 	return {...state, showing};
     }
-    
+
     // Accessors
     const accum = (state) => accumulator.properties.value(state.accum);
     const display = (state) => accumulator.properties.display(state.accum);
