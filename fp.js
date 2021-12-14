@@ -21,16 +21,25 @@
 
 // Helper for debugging in expressions.
 export function debug(expr, ...other) {
-    console.log("debug", expr, ...other);
+    console.trace("debug", expr, ...other);
     return expr;
 }
 
 
 // Simple assert is used for testing in a couple places.
-export function assert(cond, msg) {
+export const assert = (cond, msg) => {
     if (!cond) {
 	throw msg || "Assertion failed!";
     }
+}
+
+
+// Assert that the given number is an integer.
+export function assertInt(value) {
+    if (!Number.isInteger(value)) {
+	throw new Error(`${value} is not an integer!`);
+    }
+    return value;
 }
 
 
@@ -43,6 +52,12 @@ export function trap(f, err) {
 	return err;
     }
 }
+
+
+// throw `e` in an expression context.
+export function raise(e) {
+    throw e;
+};
 
 
 // Return a reversed copy of an array.
@@ -66,6 +81,15 @@ export function objmap(func, obj) {
 
     return ret;
 }
+
+
+// Convert a list of key-value pairs to an object indexed by name.
+//
+// Informally, ([[k, v]]) -> {[k]: set<v>}.
+export const coallate = seq => seq.reduce(
+    (c, [k, v]) => ({...c, [k]: [...(c[k] || []), v]}),
+    {}
+);
 
 
 // Flatten an object into a list of [name, value] pairs.

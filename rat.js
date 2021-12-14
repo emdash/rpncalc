@@ -1,21 +1,21 @@
 // (c) 2021 Brandon Lewis
 //
 // This file is part of rpncalc.
-// 
+//
 // rpncalc is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // rpncalc is distributed in the hope that it will be useful, but
 // WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with rpncalc.  If not, see <https://www.gnu.org/licenses/>.
 
-import {debug} from './fp.js';
+import {debug, assertInt} from './fp.js';
 
 
 // Convert x to raw bytes, using DataView.
@@ -38,7 +38,7 @@ function bytesToFloat64LE(bytes) {
 
 // Handle a fractional mantissa.
 function normalize(exponent, mantissa) {
-    if (!isInt(mantissa)) {
+    if (!Number.isInteger(mantissa)) {
 	return normalize(exponent - 1, mantissa * 2);
     } else {
 	return {exponent, mantissa};
@@ -83,15 +83,6 @@ export function ldexp({exponent, mantissa}) {
     return mantissa * 2 ** exponent;
 }
 
-
-const isInt = (value) => value === parseInt(value);
-
-function assertInt(value) {
-    if (!isInt(value)) {
-	throw new Error(`${value} is not an integer!`);
-    }
-    return value;
-}
 
 // euclid's algorithm for finding greatest common divider.
 export function gcd(a /*: int */, b /* :int */) /*: int */ {
@@ -188,6 +179,11 @@ export function fromFloat(value /*: Number*/) /*: Rat */ {
 	    denom: assertInt(2 ** -exponent)
 	});
     }
+}
+
+export function fromInt(num /*: Number */) /*: Rat */ {
+    assertInt(num);
+    return {num, deom: 1};
 }
 
 // Promote the given value to a rational if it is a number.
