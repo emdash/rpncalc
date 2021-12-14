@@ -119,6 +119,24 @@ export const hoist_props = (slot, module) => module.properties.map(
 );
 
 
+// Handle BigInt when deserializing from JSON
+const reviver = (key, value) =>
+      ((typeof value === "string") && /^\d+n$/.test(value))
+      ? BigInt(value.slice(0, -1))
+      : value;
+
+
+// Handle BigInt when serializing to JSON.
+const replacer = (key, value) =>
+      (typeof value === "bigint")
+      ? `${value.toString()}n`
+      : value;
+
+// enhanced version of stringify / parse which handle big-int.
+export const stringify = (val, spc) => JSON.stringify(val, replacer, spc);
+export const parse     = str        => JSON.parse(str, reviver)
+
+
 /*** Iterator functions ******************************************************/
 
 const reduce_empty_seq = new TypeError(
@@ -164,24 +182,38 @@ function ireduce(f, init) {
     return accum;
 }
 
+// Collect the iterator elements into an array.
+function collect() { return [...this]; }
+
+// Collect the iterator elements into an object.
+function collectObj() { return Object.fromEntries(this.collect()); }
+
 
 // Hack to monkey-patch builtin collection iterators with expected
 // operations.
-function monkeyPatchIter(collection) {
-    // Hack to find the actual iterator prototype for the collection.
-    const proto = (new collection)[Symbol.iterator]().__proto__;
-
-    // patch in our methods
-    proto.map = imap;
-    proto.filter = ifilter;
-    proto.reduce = ireduce;
-}
-
 function monkeyPatchCollections() {
-    monkeyPatchIter(Array);
-    monkeyPatchIter(Map);
-    monkeyPatchIter(Set);
+    // Hack to find the actual iterator prototype for the collection.
+    const getIterProto = col => (new col)[Symbol.iterator]().__proto__;
 
+    // Place useful iterator methods into the given iterator prototype.
+    function patchIter(proto) {
+        // patch in our methods
+        proto.map = imap;
+        proto.filter = ifilter;
+        proto.reduce = ireduce;
+        proto.collect = collect;
+        proto.collectObj = collectObj;
+    }
+
+    patchIter(getIterProto(Array));
+    patchIter(getIterProto(Map));
+    patchIter(getIterProto(Set));
+    // Generators need this special hack.
+    const gen = (function* () { yield 1;})();
+    patchIter(gen.__proto__.__proto__);
+
+    // While we're at it, extend the Map and Set objects with some
+    // useful methods.
     Map.prototype.map = function (...a) {
         return this.entries().map(...a);
     };
@@ -206,12 +238,6 @@ function monkeyPatchCollections() {
         return this.values().reduce(...a);
     };
 
-    // special hack for generators
-    const gen = (function* () { yield 1;})();
-    const proto = gen.__proto__.__proto__;
-    proto.map = imap;
-    proto.filter = ifilter;
-    proto.reduce = ireduce;
 };
 
 
