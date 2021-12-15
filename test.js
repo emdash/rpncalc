@@ -60,11 +60,13 @@ function test(name, callback) {
 // not match.
 function assertEq(a, b) {
     // XXX: need a less brittle way to achieve deep equality
-    const repr_a = fp.stringify(a, 2),
-	  repr_b = fp.stringify(b, 2);
+    const repr_a = fp.stringify(a),
+	  repr_b = fp.stringify(b);
 
     if (repr_a !== repr_b) {
-        console.log("Assertion Failed:", a, b);
+        console.log("Assertion Failed:");
+        console.log(repr_a);
+        console.log(repr_b);
 	throw new Error(`Assertion failed. See console output.`);
     }
 }
