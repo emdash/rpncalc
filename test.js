@@ -15,12 +15,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with rpncalc.  If not, see <https://www.gnu.org/licenses/>.
 
+
 "use strict";
+
 
 import {assert, debug, asImmutableObject} from './fp.js';
 import * as calc from './calc.js';
 import * as rat from './rat.js';
 import * as fp from './fp.js';
+
 
 // some helpers to simplify writing test cases.
 //
@@ -101,7 +104,7 @@ function assertThrows(callback, except) {
 // Since these are immutable, we only need one single, global
 // instance. There is no setup or tear-down.
 const accumulator = asImmutableObject(calc.accumulator);
-const calculator = asImmutableObject(calc.calculator);
+const calculator  = asImmutableObject(calc.calculator);
 
 
 /*** Test cases ****************************************************************/
@@ -386,11 +389,11 @@ test("calculator accepts digits", () => {
 
 test("calculator can perform operations", () => {
     assertEq(
-	debug(calculator
+	calculator
 	    .digit(4)
 	    .enter()
 	    .digit(5)
-	    .operator("add")),
+	    .operator("add"),
 	{
 	    stack: [i(9)],
 	    tape: [i(4), i(5), "add"],
@@ -414,6 +417,102 @@ test("calculator can perform operations", () => {
 	    accum: accumulator,
 	    showing: "basic"
 	}
+    );
+});
+
+
+test("calculator works on mixed values", () => {
+    // rat, int
+    assertEq(
+        calculator
+            .digit(3)
+            .denom()
+            .digit(4)
+            .enter()
+            .digit(5)
+            .operator("mul"),
+        {
+            stack: [r({num: 15, denom: 4})],
+            tape: [r({num: 3, denom: 4}), i(5), "mul"],
+            defs: calc.constants,
+            accum: accumulator,
+            showing: "basic"
+        }
+    );
+
+    // int, rat
+    assertEq(
+        calculator
+            .digit(5)
+            .enter()
+            .digit(3)
+            .denom()
+            .digit(16)
+            .operator("add"),
+        {
+            stack: [r({num: 83, denom: 16})],
+            tape: [i(5), r(rat.cons(3, 16)), "add"],
+            defs: calc.constants,
+            accum: accumulator,
+            showing: "basic"
+        }
+    );
+
+    // float, rat
+    assertEq(
+        calculator
+            .digit(5)
+            .decimal()
+            .digit(2)
+            .digit(5)
+            .enter()
+            .digit(3)
+            .denom()
+            .digit(16)
+            .operator("add"),
+        {
+            stack: [r({num: 348, denom: 64})],
+            tape: [f(5.25), r(rat.cons(3, 16)), "add"],
+            defs: calc.constants,
+            accum: accumulator,
+            showing: "basic"
+        }
+    );
+
+    // float, int
+    assertEq(
+        calculator
+            .digit(5)
+            .decimal()
+            .digit(2)
+            .enter()
+            .digit(5)
+            .operator("add"),
+        {
+            stack: [f(10.2)],
+            tape:  [f(5.2), i(5), "add"],
+            defs: calc.constants,
+            accum: accumulator,
+            showing: "basic"
+        }
+    );
+
+    // int, float
+    assertEq(
+        calculator
+            .digit(5)
+            .enter()
+            .digit(5)
+            .decimal()
+            .digit(2)
+            .operator("add"),
+        {
+            stack: [f(10.2)],
+            tape:  [i(5), f(5.2), "add"],
+            defs: calc.constants,
+            accum: accumulator,
+            showing: "basic"
+        }
     );
 });
 
@@ -573,7 +672,7 @@ test("we can convert between rationals and floats", () => {
 test("basic arithmetic operations on fractions", () => {
     // Test a bunch of boring arithmetic operators
     assertEq(
-	rat.add(rat.zero, rat.one),
+	rat.add(rat.cons(0, 1), rat.cons(1, 1)),
 	{num: 1, denom: 1}
     );
 
@@ -588,7 +687,7 @@ test("basic arithmetic operations on fractions", () => {
     );
 
     assertEq(
-	rat.div(rat.one, rat.fromFloat(4)),
+	rat.div(rat.fromInt(1), rat.fromFloat(4)),
 	{num: 1, denom: 4}
     );
 
