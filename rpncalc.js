@@ -67,15 +67,11 @@ const symbols = {
     PI:   "\u{1D70B}",
 
     frac: "fraction",
-    fadd: "+",
-    fsub: "-",
-    fmul: "⨉",
-    fdiv: "÷",
     f2:   math(fraction("x", "2")),
     f4:   math(fraction("x", "4")),
     f8:   math(fraction("x", "8")),
     f16:  math(fraction("x", "16")),
-    finv: math(fraction("1", "x")),
+    inv:  math(fraction("1", "x")),
 };
 
 function display({tag, value}) {
@@ -293,16 +289,16 @@ export function app(element) {
     // little strange. (i.e. the state.num() / sttae.denom() methods
     // do, for mixed numbers and fractions, what state.dec() point
     // does for floating-point).
-    const fnum = math(mrow(mi("x"), fraction("n", "?")));
-    const fdenom = math(fraction(mi("x"), "d"));
+    const num = math(mrow(mi("x"), fraction("n", "?")));
+    const denom = math(fraction(mi("x"), "d"));
 
     // This table is used for a few oddball cases.
     const specials = {
 	// These dispatch to methods on state, not builtin operators.
 	swap:   func   ("swap",  "\u{2B0D}", () => state.exch(-1, -2)),
 	dec:    symbol ("dec",   ".",        state.decimal),
-	fnum:   symbol ("num",   fnum,       state.num),
-	fdenom: symbol ("denom", fdenom,     state.denom),
+	num:    symbol ("num",   num,       state.num),
+	denom:  symbol ("denom", denom,     state.denom),
 	// These are short-hand aliases, which are not CSS-legal.
 	"=":    func   ("store", "=",        state.store),
 	"#":    symbol ("enter", "enter",    state.enter),
@@ -391,16 +387,16 @@ export function app(element) {
 
     const frac = layout(
 	"f2    f4   f8      f16",
- 	"float finv approx  frac",
-	"swap  fdiv fmul    fsub",
-	"7     8    9       fadd",
-	"7     8    9       fadd",
-	"4     5    6       fadd",
-	"4     5    6       fadd",
+ 	"float inv  approx  frac",
+	"swap  /    *       -",
+	"7     8    9       +",
+	"7     8    9       +",
+	"4     5    6       +",
+	"4     5    6       +",
 	"1     2    3       #",
 	"1     2    3       #",
-	"0     0    fnum    #",
-	"0     0    fdenom  #",
+	"0     0    num     #",
+	"0     0    denom   #",
     );
 
     const a = layout(

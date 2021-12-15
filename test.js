@@ -514,6 +514,8 @@ test("calculator works on mixed values", () => {
             showing: "basic"
         }
     );
+
+    // TBD: many more test cases for mixed arithmetic
 });
 
 
