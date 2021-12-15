@@ -36,10 +36,18 @@ export const assert = (cond, msg) => {
 
 // Assert that the given number is an integer.
 export function assertInt(value) {
-    if (!Number.isInteger(value)) {
+    // XXX: force Number internally.
+    //
+    // TODO: the opposite, force BigInt internally.
+    const val = (typeof value === "bigint")
+          ? Number(value)
+          : value;
+
+    if (!Number.isInteger(val)) {
 	throw new Error(`${value} is not an integer!`);
     }
-    return value;
+
+    return val;
 }
 
 
