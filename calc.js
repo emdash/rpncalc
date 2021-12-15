@@ -301,7 +301,7 @@ const by_args = coallate(
 );
 
 // index dispatch table by function name
-const by_name = coallate(
+export const by_name = coallate(
     dispatch
         .entries()
         .map(([[name, args], [ret, f]]) => [name, [args, ret, f]])

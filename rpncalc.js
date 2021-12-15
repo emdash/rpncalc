@@ -19,7 +19,7 @@
 "use strict";
 
 import {debug, reactor, reversed, undoable} from './fp.js';
-import {builtins, calculator, UserError} from './calc.js';
+import {by_name, calculator, UserError} from './calc.js';
 
 
 import {
@@ -78,10 +78,11 @@ const symbols = {
     finv: math(fraction("1", "x")),
 };
 
-function display(value) {
+function display({tag, value}) {
+    debug(tag, value);
     if (symbols[value] !== undefined) {
 	return symbols[value];
-    } else if (typeof(value) === "number") {
+    } else if (typeof value === "number" || typeof value === "bigint") {
 	return div({}, value.toString());
     } else {
 	const {integer, num, denom} = rat.toProper(value);
@@ -329,7 +330,7 @@ export function app(element) {
 	    return digit(token);
 	} else if (letters.has(token)) {
 	    return letter(token);
-	} else if (token in builtins) {
+	} else if (token in by_name) {
 	    return builtin(token);
 	} else if (token in specials) {
 	    return specials[token];
