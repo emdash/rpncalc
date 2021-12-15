@@ -133,7 +133,6 @@ const getval     = ({tag, value}) => value;
  * object key, unless it is the exact same instance.
  */
 function dispatchTable(items) {
-    debug(items);
     const data = new Map(items.map(([k, v]) => [stringify(k), v]));
 
     const has     = key    => data.has(stringify(key));
@@ -153,6 +152,7 @@ const poly_unop = (name, primF, ratF) => [
     [[name, ["rat"]],   [ "rat",   ratF]],
 ];
 
+
 // Define `name` over the cross-product of all supported types.
 //
 // In general:
@@ -161,15 +161,15 @@ const poly_unop = (name, primF, ratF) => [
 // - [_,      rat] -> rat
 // - [rat,      _] -> rat
 const poly_binop = (name, primF, ratF) => [
-    [[name, ["int",     "int"]], ["int",             primF                                  ]],
-    [[name, ["int",   "float"]], ["float", (x, y) => primF(             x,    parseFloat(y))]],
-    [[name, ["int",     "rat"]], ["rat",   (x, y) => ratf(  rat.fromInt(x),              y) ]],
-    [[name, ["float",   "int"]], ["float", (x, y) => primF(             x,    parseFloat(y))]],
-    [[name, ["float", "float"]], ["float",           primF                                  ]],
-    [[name, ["float",   "rat"]], ["rat",   (x, y) => ratF(rat.fromFloat(x),              y) ]],
-    [[name, ["rat",     "int"]], ["rat",   (x, y) => ratF(              x,   rat.fromInt(y))]],
-    [[name, ["rat",   "float"]], ["rat",   (x, y) => ratF(              x, rat.fromFloat(y))]],
-    [[name, ["rat",     "rat"]], ["rat",             ratF                                   ]],
+    [[name, ["int",     "int"]], ["int",             primF                                    ]],
+    [[name, ["int",   "float"]], ["float", (x, y) => primF(       Number(x),               y) ]],
+    [[name, ["int",     "rat"]], ["rat",   (x, y) => ratF (  rat.fromInt(x),               y) ]],
+    [[name, ["float",   "int"]], ["float", (x, y) => primF(              x ,        Number(y))]],
+    [[name, ["float", "float"]], ["float",           primF                                    ]],
+    [[name, ["float",   "rat"]], ["rat",   (x, y) => ratF (rat.fromFloat(x),               y) ]],
+    [[name, ["rat",     "int"]], ["rat",   (x, y) => ratF (              x ,   rat.fromInt(y))]],
+    [[name, ["rat",   "float"]], ["rat",   (x, y) => ratF (              x , rat.fromFloat(y))]],
+    [[name, ["rat",     "rat"]], ["rat",             ratF                                     ]],
 ];
 
 // Define `f${denom}`, which divides its argument by denom, returning rat.
@@ -361,7 +361,7 @@ export const apply = (stack, name) => {
 
     if (dispatch.has([name, tags])) {
         const [ret, func] = dispatch.get([name, tags]);
-        return [...rest, tag(ret, debug(func(...vals)))];
+        return [...rest, tag(ret, func(...vals))];
     }
 
     // tbd: more informative error message;
