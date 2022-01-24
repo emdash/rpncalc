@@ -219,7 +219,6 @@ export function app(element) {
 		    .flatten()
 		    .map(
 			([name, value]) => {
-			    console.log(name, value);
 			    return button({}, name).handle(
 				"click", () => actions.push(tag("word", name))
 			    );
@@ -487,7 +486,7 @@ export function app(element) {
     });
 
     // Trigger the initial render.
-    state.reset();
+    state.refresh();
 
     // Return value is the debug interface.
     return {...state, layouts};
