@@ -29,10 +29,11 @@ import * as fp from './fp.js';
 //
 // these wrap primitive values in a tag, as appropriate.
 const tag = calc.tag;
-const i   = value => tag("int",   BigInt(value));
 const f   = value => tag("float", parseFloat(value));
 const r   = value => tag("rat",   value);
 const w   = value => tag("word",  value);
+const frac = (n, d) => tag("rat", rat.cons(n, d));
+
 
 
 /*** Unit Test Framework *****************************************************/
@@ -233,8 +234,8 @@ test("accumulator can produce values", () => {
     assertThrows(() => accumulator.value(), calc.empty_accum);
 
     assertEq(
-	accumulator.lift({type: "dec", val: 4n}).value(),
-	i(4)
+	accumulator.lift({type: "dec", val: 4}).value(),
+	f(4)
     );
 
     assertEq(
@@ -324,12 +325,12 @@ test("accumulator handles num token correctly", () => {
 test("accumulator can produce fractions", () => {
     assertEq(
 	accumulator.digit(3).denom().digit(4).value(),
-	r({num: 3, denom: 4})
+	frac(3, 4)
     );
 
     assertEq(
 	accumulator.digit(3).digit(4).denom().digit(5).digit(6).value(),
-	r({num: 34, denom: 56})
+	frac(34, 56)
     );
 
     assertEq(
@@ -342,7 +343,7 @@ test("accumulator can produce fractions", () => {
 	    .denom()
 	    .digit(1).digit(2).digit(7)
 	    .value(),
-	r({num: 54, denom: 127})
+	frac(54, 127)
     );
 });
 
@@ -378,8 +379,8 @@ test("calculator accepts digits", () => {
     assertEq(
 	calculator.digit(4).enter(),
 	{
-	    stack: [i(4)],
-	    tape: [i(4)],
+	    stack: [f(4)],
+	    tape: [f(4)],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
@@ -395,8 +396,8 @@ test("calculator can perform operations", () => {
 	    .digit(5)
 	    .operator("add"),
 	{
-	    stack: [i(9)],
-	    tape: [i(4), i(5), "add"],
+	    stack: [f(9)],
+	    tape: [f(4), f(5), "add"],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
@@ -411,8 +412,8 @@ test("calculator can perform operations", () => {
 	    .digit(5)
 	    .operator("add"),
 	{
-	    stack: [i(15)],
-	    tape: [i(10), i(5), "add"],
+	    stack: [f(15)],
+	    tape: [f(10), f(5), "add"],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
@@ -422,7 +423,7 @@ test("calculator can perform operations", () => {
 
 
 test("calculator works on mixed values", () => {
-    // rat, int
+    // rat, float
     assertEq(
         calculator
             .digit(3)
@@ -432,15 +433,15 @@ test("calculator works on mixed values", () => {
             .digit(5)
             .operator("mul"),
         {
-            stack: [r({num: 15, denom: 4})],
-            tape: [r({num: 3, denom: 4}), i(5), "mul"],
+            stack: [frac(15, 4)],
+            tape: [frac(3, 4), f(5), "mul"],
             defs: calc.constants,
             accum: accumulator,
             showing: "basic"
         }
     );
 
-    // int, rat
+    // float, rat
     assertEq(
         calculator
             .digit(5)
@@ -450,8 +451,8 @@ test("calculator works on mixed values", () => {
             .digit(16)
             .operator("add"),
         {
-            stack: [r({num: 83, denom: 16})],
-            tape: [i(5), r(rat.cons(3, 16)), "add"],
+            stack: [frac(83, 16)],
+            tape: [f(5), frac(3, 16), "add"],
             defs: calc.constants,
             accum: accumulator,
             showing: "basic"
@@ -471,15 +472,15 @@ test("calculator works on mixed values", () => {
             .digit(16)
             .operator("add"),
         {
-            stack: [r({num: 348, denom: 64})],
-            tape: [f(5.25), r(rat.cons(3, 16)), "add"],
+            stack: [frac(348, 64)],
+            tape: [f(5.25), frac(3, 16), "add"],
             defs: calc.constants,
             accum: accumulator,
             showing: "basic"
         }
     );
 
-    // float, int
+    // float, float
     assertEq(
         calculator
             .digit(5)
@@ -490,14 +491,14 @@ test("calculator works on mixed values", () => {
             .operator("add"),
         {
             stack: [f(10.2)],
-            tape:  [f(5.2), i(5), "add"],
+            tape:  [f(5.2), f(5), "add"],
             defs: calc.constants,
             accum: accumulator,
             showing: "basic"
         }
     );
 
-    // int, float
+    // float, float
     assertEq(
         calculator
             .digit(5)
@@ -508,14 +509,29 @@ test("calculator works on mixed values", () => {
             .operator("add"),
         {
             stack: [f(10.2)],
-            tape:  [i(5), f(5.2), "add"],
+            tape:  [f(5), f(5.2), "add"],
             defs: calc.constants,
             accum: accumulator,
             showing: "basic"
         }
     );
 
-    // TBD: many more test cases for mixed arithmetic
+    // float, float (in fraction mode)
+    assertEq(
+        calculator
+            .show("frac")
+            .digit(3)
+            .enter()
+            .digit(4)
+            .operator("div"),
+        {
+            stack: [frac(3, 4)],
+            tape:  [f(3), f(4), "div"],
+            defs: calc.constants,
+            accum: accumulator,
+            showing: "basic"
+        }
+    );
 });
 
 
@@ -527,8 +543,8 @@ test("calculator can swap values at stack positions", () => {
 	    .digit(5)
 	    .exch(1, 0),
 	{
-	    stack: [i(5), i(4)],
-	    tape: [i(4), i(5), "exch(1, 0)"],
+	    stack: [f(5), f(4)],
+	    tape: [f(4), f(5), "exch(1, 0)"],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
@@ -549,8 +565,8 @@ test("calculator can swap values at stack positions", () => {
 	    .exch(-1, -2)
 	    .operator("sub"),
 	{
-	    stack: [i(1)],
-	    tape: [i(4), i(5), "exch(1, 0)", "sub"],
+	    stack: [f(1)],
+	    tape: [f(4), f(5), "exch(1, 0)", "sub"],
 	    defs: calc.constants,
 	    accum: accumulator,
 	    showing: "basic"
@@ -601,49 +617,49 @@ test("euclid's algorithm for gcd", () => {
 
 test("we can simplify fractions", () => {
     assertEq(
-	rat.simplify({num: 4, denom: 12}),
-	{num: 1, denom: 3}
+	rat.simplify(rat.cons(4, 12)),
+	rat.cons(1, 3)
     );
 });
 
 test("we can convert between improper and proper fractions", () => {
     assertEq(
-	rat.toProper({num: 5, denom: 4}),
+	rat.toProper(rat.cons(3, 4)),
 	{integer: 1, num: 1, denom: 4}
     );
 
     assertEq(
 	rat.fromProper({integer:1, num: 1, denom: 4}),
-	{num: 5, denom: 4}
+	rat.cons(5, 4)
     );
 });
 
 test("we can convert between fractions and strings", () => {
     assertEq(
-	rat.toString({num: 1, denom: 4}),
+	rat.toString(rat.cons(1, 4)),
 	"1/4"
     );
 
     assertEq(
-	rat.toString({num: 5, denom: 4}, true),
+	rat.toString(rat.cons(5, 4), true),
 	"1-1/4"
     );
 });
 
 test("we can convert between rationals and floats", () => {
     assertEq(
-	rat.toFloat({num: 1, denom: 4}),
+	rat.toFloat(rat.cons(1, 4)),
 	0.25
     );
 
     assertEq(
 	rat.fromFloat(0.25),
-	{num: 1, denom: 4}
+	rat.cons(1, 4)
     );
 
     assertEq(
 	rat.fromFloat(0.375),
-	{num: 3, denom: 8}
+	rat.cons(3, 8)
     );
 
     // XXX: these tests below don't pass without the approx.
@@ -662,12 +678,12 @@ test("we can convert between rationals and floats", () => {
 
     assertEq(
 	rat.approx(rat.fromFloat(12.7), 10),
-	{num: 127, denom: 10}
+	rat.cons(127, 10)
     );
 
     assertEq(
 	rat.approx(rat.fromFloat(25.4), 10),
-	{num: 127, denom: 5}
+	rat.cons(127, 5)
     );
 });
 
@@ -675,84 +691,64 @@ test("basic arithmetic operations on fractions", () => {
     // Test a bunch of boring arithmetic operators
     assertEq(
 	rat.add(rat.cons(0, 1), rat.cons(1, 1)),
-	{num: 1, denom: 1}
+	rat.cons(1, 1)
     );
 
     assertEq(
-	rat.simplify(rat.add({num: 3, denom: 16}, {num: 3, denom: 4})),
-	{num: 15, denom: 16}
+	rat.simplify(rat.add(rat.cons(3, 16), rat.cons(3, 4))),
+	rat.cons(15, 16)
     );
 
     assertEq(
-	rat.simplify(rat.mul({num: 3, denom: 4}, {num: 100, denom: 1})),
-	{num: 75, denom: 1}
+	rat.simplify(rat.mul(rat.cons(3, 4), rat.cons(100, 1))),
+	rat.cons(75, 1)
     );
 
     assertEq(
 	rat.div(rat.fromInt(1), rat.fromFloat(4)),
-	{num: 1, denom: 4}
+	rat.cons(1, 4)
     );
 
     assertEq(
-	rat.simplify(rat.div({num: 5, denom: 16}, {num: 1, denom: 16})),
-	{num: 5, denom: 1}
+	rat.simplify(rat.div(rat.cons(5, 16), rat.cons(1, 16))),
+	rat.cons(5, 1)
     );
 
+    assertEq(rat.inv(rat.fromFloat(4)), rat.cons(1, 4));
+    assertEq(rat.neg(rat.cons(1, 8)), rat.cons(-1, 8));
+    assertEq(rat.neg(rat.cons(-1, 8)), rat.cons(1, 8));
+    assertEq(rat.abs(rat.cons(1, 8)), rat.cons(1, 8));
+    assertEq(rat.abs(rat.cons(-1, 8)), rat.cons(1, 8));
     assertEq(
-	rat.inv(rat.fromFloat(4)),
-	{num: 1, denom: 4}
-    );
-
-    assertEq(
-	rat.neg({num: 1, denom: 8}),
-	{num: -1, denom: 8}
-    );
-
-    assertEq(
-	rat.neg({num: -1, denom: 8}),
-	{num: 1, denom: 8}
-    );
-
-    assertEq(
-	rat.abs({num: 1, denom: 8}),
-	{num: 1, denom: 8}
-    );
-
-    assertEq(
-	rat.abs({num: -1, denom: 8}),
-	{num: 1, denom: 8}
-    );
-
-    assertEq(
-	rat.simplify(rat.div({num: 127, denom: 10}, {num: 254, denom: 10})),
-	{num: 1, denom: 2}
+        rat.simplify(rat.div(rat.cons(127, 10), rat.cons(254, 10))),
+	rat.cons(1, 2)
     );
 });
 
 test("we can find arbitrary fractional aproximations", () => {
     assertEq(
 	rat.approx(rat.fromFloat(Math.PI), 64),
-	{num: 201, denom: 64}
+	rat.cons(201, 64)
     );
 
     assertEq(
 	rat.approx(rat.fromFloat(Math.PI), 32),
-	{num: 101, denom: 32}
+	rat.cons(101, 32)
     );
 
     assertEq(
 	rat.approx(rat.fromFloat(Math.PI), 7),
-	{num: 22, denom: 7}
+	rat.cons(22, 7)
     );
 
     assertEq(
 	rat.approx(rat.fromFloat(12.7), 10),
-	{num: 127, denom: 10}
+	rat.cons(127, 10)
     );
 
     assertEq(
 	rat.approx(rat.fromFloat(25.4), 10),
-	{num: 127, denom: 5}
+	rat.cons(127, 5)
     );
 });
 

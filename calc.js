@@ -1,4 +1,4 @@
-// (c) 2021 Brandon Lewis
+
 //
 // This file is part of rpncalc.
 //
@@ -21,7 +21,7 @@
 // Functional Programming.
 //
 // This module defines ADTs for the calculator's state. The UX
-// layer renders the resulting state. 
+// layer renders the resulting state.
 //
 // The idea is that a calculator is just a DFA you manually supply
 // with tokens. I realized that, since we are operating at human input
@@ -108,7 +108,6 @@ export const not_a_digit     = new IllegalToken("Not a digit.");
 // Stack values are a tagged union. Informally,
 //
 // type Value =
-//    | {tag: "int",   value:  BigInt}
 //    | {tag: "float", value:  Number}
 //    | {tag: "rat",   value: rat.Rat};
 //
@@ -120,6 +119,20 @@ const getval     = ({tag, value}) => value;
 
 
 /* Polymorphic Dispatch Helpers **********************************************/
+
+
+/**
+ * XXX: I wrote all this code to handle dynamic dispatch on a
+ * polymorphic stack. It was intended to lay the groudnwork for unit
+ * calculations, but now that I wrote it, I am having some doubts.
+ *
+ * It works, it's very powerful and flexible. But it turned out that
+ * adding an "int" type was a bit of a mistake.
+ *
+ * The real culprit was introducing an `int` type where before there
+ * was really only `float` and `rat`. I'm just not sure it's right to
+ * remove it.
+ */
 
 
 /**
@@ -156,18 +169,12 @@ const poly_unop = (name, primF, ratF) => [
 // Define `name` over the cross-product of all supported types.
 //
 // In general:
-// - [int,  float] -> float
-// - [float,  int] -> float
+// - [float, float] -> float
 // - [_,      rat] -> rat
 // - [rat,      _] -> rat
 const poly_binop = (name, primF, ratF) => [
-    [[name, ["int",     "int"]], ["int",             primF                                    ]],
-    [[name, ["int",   "float"]], ["float", (x, y) => primF(       Number(x),               y) ]],
-    [[name, ["int",     "rat"]], ["rat",   (x, y) => ratF (  rat.fromInt(x),               y) ]],
-    [[name, ["float",   "int"]], ["float", (x, y) => primF(              x ,        Number(y))]],
     [[name, ["float", "float"]], ["float",           primF                                    ]],
     [[name, ["float",   "rat"]], ["rat",   (x, y) => ratF (rat.fromFloat(x),               y) ]],
-    [[name, ["rat",     "int"]], ["rat",   (x, y) => ratF (              x ,   rat.fromInt(y))]],
     [[name, ["rat",   "float"]], ["rat",   (x, y) => ratF (              x , rat.fromFloat(y))]],
     [[name, ["rat",     "rat"]], ["rat",             ratF                                     ]],
 ];
@@ -182,7 +189,6 @@ const divisor = d => {
     const denom = rat.fromInt(d);
 
     return [
-        [[name, ["int"]],   ["rat", x => rat.div(frat.fromInt(x),  denom)]],
         [[name, ["float"]], ["rat", x => rat.div(rat.fromFloat(x), denom)]],
         [[name, ["rat"]],   ["rat",      rat.div]],
     ];
@@ -194,7 +200,6 @@ const divisor = d => {
 // - int | rat -> rat,
 // - float     -> float
 const poly_math = (name, f) => [
-    [[name, ["int"]],   ["rat",   x =>               f( parseFloat(x))]],
     [[name, ["float"]], ["float",                    f]],
     [[name, ["rat"]],   ["rat",   x => rat.fromFloat(f(rat.toFloat(x)))]],
 ];
@@ -229,7 +234,7 @@ const mono_unop  = (name, tag, f) => [[name, [tag]],      [tag, f]];
 // dispatch: Map<Signature, [Ret, Func]>, where
 //   Signature: [Name, [Tag]],
 //   Name:      String,                  // the function's user-visible identifier
-//   Tag:       "int" | "float" | "rat", // Type tag
+//   Tag:       "float" | "rat",         // Type tag
 //   Ret:       Tag                      // Return type tag
 //   Func:      (...args: [Any]) => Any  // Function which implements the operation.
 export const dispatch = window.dispatch = dispatchTable([
@@ -244,6 +249,7 @@ export const dispatch = window.dispatch = dispatchTable([
     ...poly_binop("sub", (x, y) => x - y, rat.sub),
     ...poly_binop("mul", (x, y) => x * y, rat.mul),
     ...poly_binop("div", (x, y) => x / y, rat.div),
+    ...poly_binop("approx", rat.approx, rat.approx),
 
     // Scientific operations
     ...poly_math("acos",   Math.acos),
@@ -281,15 +287,12 @@ export const dispatch = window.dispatch = dispatchTable([
 
     // Type coercion functions
     mono_unop("float", "rat",   rat.toFloat),
-    mono_unop("float", "int",   parseFloat),
-    mono_unop("frac",  "int",   rat.fromInt),
     mono_unop("frac",  "float", rat.fromFloat),
 
     // Special cases.
     [["random", []],                 ["float", Math.random]],
     [["trunc",  ["float", "float"]], ["float",  Math.trunc]],
     [["sign",   ["float"]],          ["float",   Math.sign]],
-    [["approx", ["rat", "float"]],   ["rat",    rat.approx]],
 ]);
 
 
@@ -480,7 +483,7 @@ export const accumulator = (function () {
     // represent a meaningful value.
     function value({type, val}) { switch (type) {
 	case "empty":  throw  empty_accum;
-	case "dec":    return tag("int", BigInt(val));
+	case "dec":    return tag("float", val);
 	case "float":  return tag("float", parseFloat(`${val.integer}.${val.frac}`));
 	case "var":    return tag("word", val);
 	case "num":    throw  incomplete_frac;
@@ -525,32 +528,12 @@ export const accumulator = (function () {
 // - current accumulator state
 // - current mode of operation ("showing")
 //
-// TBD: look into merging the keypad-layout with `ops` and `showing`
-// stuff here. The original goal was for `ops` to be updated based on
-// stack contents, such that the ux could suppress or"grey out"
-// operations that are not present in `ops`.
+// TBD: look into merging the keypad-layout here.
 //
 // It might make *more* sense if the calculator generates the abstract
-// key layout and function mapping. Different UI layers could use this
-// as hints, and it would completely decouple the ux layer from
-// calculator internals, since at that point it has everything it
-// needs in the calculator's public state.
+// key layout and function mapping.
 //
-// TBD: should errors be stored here. I.e., if a stack operation
-// results in an error being thrown, do we catch it and attach it to
-// the current state, so that the ux can then render it? The problem
-// here is that if `undoable` receives a value, then it will enter the
-// history. So errors really need to be handled by `undoable`. But
-// this then makes `undoable` a lot less general than one would wish.
-//
-// The behavior I would ideally want is that genuine user errors get a
-// visual representation in the sucessor state, but do not enter the
-// history. I.e."nothing happens, except that now there's a visible
-// explanation for why nothing happened". This behavior could also be
-// implemented in `reactor`. Internal errors should just present a
-// clear stack trace on the console. There whole design is such that
-// there is no harm in failing to catch these exceptions, and quite
-// the opposite, I would prefer to see the stack trace.
+// TBD: should errors be stored here?
 export const calculator = (function () {
     const init = {
 	stack: [],
@@ -563,7 +546,7 @@ export const calculator = (function () {
     // push value onto stack, bypassing the accumulator.
     function push(state, value) {
 	// if value is a string, and is defined...
-	const numeric = (typeof(value) === "string") && state.defs[value]
+	const numeric = value.tag === "word" && state.defs[value]
 	// ...push the value after lookup...
 	      ? state.defs[value]
 	// ...otherwise push the value unmodified.
@@ -582,7 +565,18 @@ export const calculator = (function () {
 	if (!accumulator.properties.isEmpty(state.accum)) {
 	    const value = accumulator.properties.value(state.accum);
 	    const accum = accumulator.methods.clear(state.accum);
-	    return {...push(state, value), accum};
+            // XXX: hack to coerce all values to fractions in fraction
+            // mode.  what I don't like is that it couples us to
+            // "showing", (which should be renamed "mode", I guess).
+            if (state.showing === "frac" && debug(value).tag === "float") {
+	        return {...push(
+                    state,
+                    tag("rat", rat.fromFloat(value.value)),
+                    accum
+                )};
+            } else {
+                return {...push(state, value), accum};
+            }
 	} else {
 	    return state;
 	}
