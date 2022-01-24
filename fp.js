@@ -383,17 +383,32 @@ export function asImmutableObject({init, methods, properties}) {
 // If this process throws an excetion, `err` is called on the input
 // state
 export function reactor({init, methods, properties}, output, on_error) {
-    let state = init;
+    let state;
+
+    let saved = window.localStorage.getItem("default");
+
+    if (saved !== null) {
+        console.log("Loading saved history...");
+        state = debug(JSON.parse(saved));
+    } else {
+        console.log("No history to load...");
+        state = init;
+    }
+
+    function refresh() {
+        output(state, actions);
+    }
 
     const method = (m) => (...args) => {
 	try {
 	    state = m(state, ...args);
+            window.localStorage.setItem("default", JSON.stringify(state));
 	} catch (err) {
 	    // defer to the error handler on failure.
 	    state = on_error(state, err);
 	}
 	// notify the listener that the state has changed.
-	output(state, actions);
+	refresh();
     };
 
     const property = (p) => (...args) => p(state, ...args);
@@ -402,6 +417,7 @@ export function reactor({init, methods, properties}, output, on_error) {
     // one namespace ... though in hindsight I wonder if this is
     // actually a good idea.
     const actions = {
+        refresh,
 	...methods.map(method),
 	...properties.map(property)
     };
