@@ -19,7 +19,7 @@
 "use strict";
 
 import {debug, reactor, reversed, undoable} from './fp.js';
-import {by_name, calculator, UserError} from './calc.js';
+import {by_name, calculator, UserError, tag} from './calc.js';
 
 
 import {
@@ -75,23 +75,28 @@ const symbols = {
     inv:  math(fraction("1", "x")),
 };
 
+function displayRat(value) {
+    const {integer, num, denom} = rat.toProper(value);
+    if (denom !== 1) {
+        const frac = fraction(num, denom);
+	if (integer === 0) {
+	    return div({}, math(frac));
+	} else {
+	    return div({}, math(mrow(mn(integer.toString()), frac)));
+        };
+    } else {
+	return div({}, integer.toString());
+    }
+}
+
+
 function display({tag, value}) {
     debug(tag, value);
-    if (symbols[value] !== undefined) {
-	return symbols[value];
-    } else if (typeof value === "number" || typeof value === "bigint") {
-	return div({}, value.toString());
-    } else {
-	const {integer, num, denom} = rat.toProper(value);
-	if (denom !== 1 && num !== 0) {
-	    if (integer === 0) {
-		return div({}, math(fraction(num, denom)));
-	    } else {
-		return div({}, math(mrow(mn(integer.toString()), fraction(num, denom))));
-	    }
-	} else {
-	    return div({}, integer.toString());
-	}
+
+    switch (tag) {
+        case "float": return div({}, value.toString());
+        case "rat":   return displayRat(value);
+        case "word":  return div({}, symbols[value] || value.toString());
     }
 }
 
@@ -216,7 +221,7 @@ export function app(element) {
 			([name, value]) => {
 			    console.log(name, value);
 			    return button({}, name).handle(
-				"click", () => actions.push(name)
+				"click", () => actions.push(tag("word", name))
 			    );
 			}
 		    )

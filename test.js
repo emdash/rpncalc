@@ -753,6 +753,43 @@ test("we can find arbitrary fractional aproximations", () => {
 	rat.approx(rat.fromFloat(25.4), 10),
 	rat.cons(127, 5)
     );
+
+    assertEq(
+	calculator
+            .show("frac")
+	    .digit(3)
+	    .enter()
+	    .digit(7)
+	    .operator("div")
+            .digit(3)
+            .digit(2)
+            .operator("approx"),
+	{
+	    stack: [frac(7, 16)],
+	    tape: [frac(3, 1), frac(7, 1), "div", frac(32, 1), "approx"],
+	    defs: calc.constants,
+	    accum: accumulator,
+	    showing: "frac"
+	}
+    );
+
+    assertEq(
+	calculator
+	    .digit(3)
+	    .enter()
+	    .digit(7)
+	    .operator("div")
+            .digit(3)
+            .digit(2)
+            .operator("approx"),
+	{
+	    stack: [frac(7, 16)],
+	    tape: [f(3), f(7), "div", f(32), "approx"],
+	    defs: calc.constants,
+	    accum: accumulator,
+	    showing: "basic"
+	}
+    );
 });
 
 

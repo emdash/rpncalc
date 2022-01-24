@@ -175,20 +175,22 @@ export const gt  = (a, b) => a.num * b.denom >  b.num * a.denom;
 export const gte = (a, b) => a.num * b.denom >= b.num * a.denom;
 
 // Return the nearest approximation of x with the given denominator.
-export function approx(value, denom) {
-    const limit = {num: 1, denom: denom};
+export function approx(value, limit) {
+    const maybeConvert = ((typeof limit) === "number")
+        ? fromFloat(limit)
+        : limit;
 
-    // Convert to proper fraction so that the num is always < denom.
-    const proper = toProper(value);
-
-    if ((typeof(denom) !== "number") || (denom !== Math.floor(denom))) {
-	throw new Error(`${denom} is not an integer`);
+    if (maybeConvert.denom !== 1) {
+        throw new Error(`${limit} is not an integer!`);
     }
+
+    const denom = maybeConvert.num;
+    const proper = toProper(value);
 
     // XXX: this is O(denom), we can surely do better
     let num = 0;
     for (let i = 0, bestErr = cons(1, 1); i <= denom; i++) {
-	const error = abs(sub(proper, {num: i, denom}));
+ 	const error = abs(sub(proper, {num: i, denom}));
 	if (lt(error, bestErr)) {
 	    num = i;
 	    bestErr = error;

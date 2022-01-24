@@ -232,7 +232,6 @@ export const dispatch = dispatchTable([
     ...poly_binop("sub", (x, y) => x - y, rat.sub),
     ...poly_binop("mul", (x, y) => x * y, rat.mul),
     ...poly_binop("div", (x, y) => x / y, rat.div),
-    ...poly_binop("approx", rat.approx, rat.approx),
 
     // Scientific operations
     ...poly_math("acos",   Math.acos),
@@ -276,6 +275,10 @@ export const dispatch = dispatchTable([
     [["random", []],                 ["float", Math.random]],
     [["trunc",  ["float", "float"]], ["float",  Math.trunc]],
     [["sign",   ["float"]],          ["float",   Math.sign]],
+    [["approx", ["rat", "float"]],   ["rat",    rat.approx]],
+    [["approx", ["rat", "rat"]],     ["rat",    rat.approx]],
+    [["approx", ["float", "float"]], ["rat", (x, y) => rat.approx(rat.fromFloat(x), y)]],
+    [["approx", ["float", "rat"]],   ["rat", (x, y) => rat.approx(rat.fromFloat(x), y)]],
 ]);
 
 
@@ -527,17 +530,17 @@ export const calculator = (function () {
     };
 
     // push value onto stack, bypassing the accumulator.
-    function push(state, value) {
-	// if value is a string, and is defined...
-	const numeric = value.tag === "word" && state.defs[value]
+    function push(state, tagged) {
+	// if value is a word,
+	const maybeLookup = (tagged.tag === "word")
 	// ...push the value after lookup...
-	      ? state.defs[value]
+	      ? state.defs[tagged.value] || tagged
 	// ...otherwise push the value unmodified.
-	      : value;
+	      : tagged;
 	// concatenate the new element onto the stack:
-	const stack = [...state.stack, numeric];
+	const stack = [...state.stack, maybeLookup];
 	// concatenate the literal value onto the tape.
-	const tape  = [...state.tape,  value];
+	const tape  = [...state.tape,  tagged];
 	return {...state, stack, tape};
     }
 
