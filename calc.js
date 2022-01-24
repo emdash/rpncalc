@@ -100,10 +100,7 @@ export const extra_denom     = new IllegalToken("Already in denominator.");
 export const not_a_digit     = new IllegalToken("Not a digit.");
 
 
-/*** Polymorphic Dispatch *************************************************/
-
-/* Stack Value Tagging *******************************************************/
-
+/*** Polymorphic Dispatch ****************************************************/
 
 // Stack values are a tagged union. Informally,
 //
@@ -119,20 +116,6 @@ const getval     = ({tag, value}) => value;
 
 
 /* Polymorphic Dispatch Helpers **********************************************/
-
-
-/**
- * XXX: I wrote all this code to handle dynamic dispatch on a
- * polymorphic stack. It was intended to lay the groudnwork for unit
- * calculations, but now that I wrote it, I am having some doubts.
- *
- * It works, it's very powerful and flexible. But it turned out that
- * adding an "int" type was a bit of a mistake.
- *
- * The real culprit was introducing an `int` type where before there
- * was really only `float` and `rat`. I'm just not sure it's right to
- * remove it.
- */
 
 
 /**
@@ -170,8 +153,8 @@ const poly_unop = (name, primF, ratF) => [
 //
 // In general:
 // - [float, float] -> float
-// - [_,      rat] -> rat
-// - [rat,      _] -> rat
+// - [_,      rat]  -> rat
+// - [rat,      _]  -> rat
 const poly_binop = (name, primF, ratF) => [
     [[name, ["float", "float"]], ["float",           primF                                    ]],
     [[name, ["float",   "rat"]], ["rat",   (x, y) => ratF (rat.fromFloat(x),               y) ]],
@@ -237,7 +220,7 @@ const mono_unop  = (name, tag, f) => [[name, [tag]],      [tag, f]];
 //   Tag:       "float" | "rat",         // Type tag
 //   Ret:       Tag                      // Return type tag
 //   Func:      (...args: [Any]) => Any  // Function which implements the operation.
-export const dispatch = window.dispatch = dispatchTable([
+export const dispatch = dispatchTable([
     // Universal Unary Functions
     ...poly_unop("abs",    Math.abs,              rat.abs),
     ...poly_unop("inv",    x => 1 / x,            rat.inv),
@@ -315,7 +298,7 @@ export const by_name = coallate(
 // - if seq is empty, returns empty.
 // - if seq is nonempty, and all elements are the same, returns this value.
 // - if seq is nonempty, and all elements are not equal, throws.
-const requireEqual = window.requireEqual = (seq, empty, err) =>
+const requireEqual = (seq, empty, err) =>
       (seq.length === 0)
       ? empty
       : (seq.length === 1)
@@ -323,11 +306,11 @@ const requireEqual = window.requireEqual = (seq, empty, err) =>
       : seq.reduce((p, n) => (p !== n) ? raise(err) : n);
 
 // the arity of each function
-const arities = (window.arities = coallate(
+const arities = coallate(
     dispatch
         .entries()
         .map(([[name, args], [ret, f]]) => [name, args.length])
-)).map(
+).map(
     a => requireEqual(a, 0, "inconsistent arity")
 );
 
@@ -564,11 +547,11 @@ export const calculator = (function () {
     function enter(state) {
 	if (!accumulator.properties.isEmpty(state.accum)) {
 	    const value = accumulator.properties.value(state.accum);
-	    const accum = debug(accumulator.methods.clear(state.accum));
+	    const accum = accumulator.methods.clear(state.accum);
             // XXX: hack to coerce all values to fractions in fraction
             // mode.  what I don't like is that it couples us to
             // "showing", (which should be renamed "mode", I guess).
-            if (state.showing === "frac" && debug(value).tag === "float") {
+            if (state.showing === "frac" && value.tag === "float") {
 	        return {
                     ...push(
                         state,
