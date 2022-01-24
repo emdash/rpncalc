@@ -58,6 +58,7 @@ const symbols = {
     sub:  "-",
     mul:  "⨉",
     div:  "÷",
+    neg:  "-x",
     pow:  "x\u{207F}",
     exp:  "\u{1D486}\u{207F}",
     square: "x\u{00B2}",
@@ -225,7 +226,7 @@ export function app(element) {
 	if (calc.showing === "keyboard") {
 	    // In keyboard mode, there is no onscreen keyboard.
 	    //
-	    // We use the space to show the tape.	
+	    // We use the space to show the tape.
 	    append(container(
 		"tape-container",
 		"Tape",
@@ -414,7 +415,7 @@ export function app(element) {
 	". . Z X C V B N M .",
 	". . . = = # # # dec .",
     );
-    
+
     // Layout consisting of all available functions.
     const fn = layout(
         "abs    acos   acosh approx asin  asinh",
