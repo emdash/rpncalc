@@ -230,7 +230,11 @@ export function app(element) {
 	    append(container(
 		"tape-container",
 		"Tape",
-		...calc.tape.map(display)
+		...calc.tape.map(
+                    x => (typeof x === "string")
+                        ? (symbols[x] || x)
+                        : display(x)
+                )
 	    ));
 	} else {
 	    // Otherwise, render the keypad appropriate for the mode
