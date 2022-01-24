@@ -564,16 +564,18 @@ export const calculator = (function () {
     function enter(state) {
 	if (!accumulator.properties.isEmpty(state.accum)) {
 	    const value = accumulator.properties.value(state.accum);
-	    const accum = accumulator.methods.clear(state.accum);
+	    const accum = debug(accumulator.methods.clear(state.accum));
             // XXX: hack to coerce all values to fractions in fraction
             // mode.  what I don't like is that it couples us to
             // "showing", (which should be renamed "mode", I guess).
             if (state.showing === "frac" && debug(value).tag === "float") {
-	        return {...push(
-                    state,
-                    tag("rat", rat.fromFloat(value.value)),
+	        return {
+                    ...push(
+                        state,
+                        tag("rat", rat.fromFloat(value.value))
+                    ),
                     accum
-                )};
+                };
             } else {
                 return {...push(state, value), accum};
             }

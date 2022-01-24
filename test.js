@@ -459,6 +459,7 @@ test("calculator works on mixed values", () => {
         }
     );
 
+
     // float, rat
     assertEq(
         calculator
@@ -526,12 +527,14 @@ test("calculator works on mixed values", () => {
             .operator("div"),
         {
             stack: [frac(3, 4)],
-            tape:  [f(3), f(4), "div"],
+            tape:  [frac(3, 1), frac(4, 1), "div"],
             defs: calc.constants,
             accum: accumulator,
-            showing: "basic"
+            showing: "frac"
         }
     );
+
+    // TBD: many more test cases for mixed arithmetic
 });
 
 
@@ -624,8 +627,8 @@ test("we can simplify fractions", () => {
 
 test("we can convert between improper and proper fractions", () => {
     assertEq(
-	rat.toProper(rat.cons(3, 4)),
-	{integer: 1, num: 1, denom: 4}
+	rat.toProper(rat.cons(4, 3)),
+	{integer: 1, num: 1, denom: 3}
     );
 
     assertEq(
